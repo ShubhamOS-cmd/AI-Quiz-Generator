@@ -2,13 +2,14 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "\\",
-  "license": "ISC",
-  "author": "",
-  "type": "module",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "dev": "node src/index.js"
+    "start":"node src/index.js",
+    "dev": "nodemon src/index.js"
   },
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
