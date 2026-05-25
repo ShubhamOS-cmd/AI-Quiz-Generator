@@ -14,7 +14,7 @@ app.use(morgan('combined',{
 }));
 app.use(cookieParser());
 app.use(express.json());
-
+app.use(express.urlencoded({ extended: true }))
 app.set('trust proxy',true);
 
 // Add all routes here one by one
