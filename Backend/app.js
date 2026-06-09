@@ -4,7 +4,7 @@ import morgan  from 'morgan';
 import cookieParser from 'cookie-parser';
 import cors from "cors";
 import logger from './src/config/logger.js';
-
+import { redis } from './src/redis/index.js';
 const app = express();
 
 app.use(helmet());
@@ -17,14 +17,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }))
 app.set('trust proxy',true);
 
-// Add all routes here one by one
+
 app.get("/",(req,res) => { 
     return res.json({message:"Serve is Working"}); 
 })
+app.get("/redis" , async(req , res)=>{
+    const reply = await redis.ping();
+    res.json({message_redis: `Redis replied ${reply}`});
+})
 
-// Add 404 handler 
 
-
-// Add error handler
-
+import authRoute from "./src/routes/auth.routes.js";
+app.use('/api/v1/auth' , authRoute);
 export default app;
