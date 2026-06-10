@@ -31,12 +31,20 @@ const quizSchema = new mongoose.Schema(
       type: String,
       enum: ["scheduled", "active", "completed"],
       default: "scheduled",
-      index: true,
     },
+    leaderboard : [{
+      userId: {
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "User",
+      },
+      score: Number,
+      rank : Number,
+    }
+    ]
   },
   {
     timestamps: true,
   }
 )
 
-module.exports = mongoose.model("Qizz" , quizSchema);
+export default mongoose.model("Quiz" , quizSchema);

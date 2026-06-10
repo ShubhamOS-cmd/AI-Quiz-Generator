@@ -5,7 +5,7 @@ const optionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         required:[true , "Option text is required"],
     }
-} , {_id : true});
+} , {_id : false});
 
 const questionSchema = new mongoose.Schema(
   {
@@ -56,6 +56,6 @@ const questionSchema = new mongoose.Schema(
   }
 );
 
-questionSchema.index({quizzId : 1 , order : 1});
+questionSchema.index({quizId : 1 , order : 1});
 
-module.exports = mongoose.model("Question" , questionSchema);
+export default mongoose.model("Question" , questionSchema);
