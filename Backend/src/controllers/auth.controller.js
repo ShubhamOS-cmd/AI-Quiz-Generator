@@ -106,15 +106,7 @@ const hashOtp = (otp) => {
 };
 
 const otpRequest = asyncHandler(async(req , res) => { // OTP Request
-  let parsed;
-  try {
-    parsed = otpRequestParser.parse(req.body);
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      throw new ApiError(400, err.issues[0].message);
-    }
-    throw err;
-  }
+    const parsed = otpRequestParser.parse(req.body);
     const { email, type } = parsed;
     const user = await User.findOne({ email });
     if (!user && type === 'password-reset') { 
@@ -176,15 +168,8 @@ const otpRequest = asyncHandler(async(req , res) => { // OTP Request
 // OTP VERIFY
 // =====================================================
 const otpVerify = asyncHandler(async(req , res) =>{
-  let parsed ;
-  try {
-      parsed = otpVerifyParser.parse(req.body);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-      throw new ApiError(400 , err.issues[0].messages);
-    }
-    throw err;
-  }
+
+    const  parsed = otpVerifyParser.parse(req.body);
     const {email , type , otp} = parsed;
     const user = await User.findOne({ email });
 
@@ -236,15 +221,7 @@ const otpVerify = asyncHandler(async(req , res) =>{
 })
 
 const register = asyncHandler(async(req , res)=>{
-  let parsed ;
-    try {
-    parsed = registerParser.parse(req.body);
-    } catch (err) {
-    if (err instanceof z.ZodError) {
-      throw new ApiError(400 , err.issues[0].messages);
-    }
-    throw err;
-    }
+    const parsed = registerParser.parse(req.body);
     const {email , username , password} = parsed;
     const verified = await redis.get(
       `otp:${email}:register:verified`
@@ -284,23 +261,15 @@ const register = asyncHandler(async(req , res)=>{
     ]);
 
     setRefreshCookie(res, refreshToken);
-    setAccessCookie(res , accessToken);
+    // setAccessCookie(res , accessToken);
     return res.status(201).json(new ApiResponse(200 , 
       {accessToken: accessToken},
       'User registered successfully'
     ));
 })
 const login = asyncHandler(async(req , res) => {
-  let parsed;
-  try {
-    parsed = loginParser.parse(req.body);
-    } catch (err) {
-    if (err instanceof z.ZodError) {
-      throw new ApiError(400 , err.issues[0].message);
-    }
+    const parsed = loginParser.parse(req.body);
 
-    throw err;
-    }
     const {username , password} = parsed;
     const attemptsKey = `login:${username}:attempts`;
 
@@ -339,14 +308,13 @@ const login = asyncHandler(async(req , res) => {
     );
 
     setRefreshCookie(res, refreshToken);
-    setAccessCookie(res , accessToken);
+    // setAccessCookie(res , accessToken);
     return res.status(200).json( new ApiResponse(200,
       {accessToken: accessToken},
       'Logged in successfully',
     ));
 })
 const refresh = asyncHandler(async(req , res) => {
-  try {
     const userId = req.userId;
     const refreshToken = req.cookies?.refreshToken;
     const storedToken = await redis.get(
@@ -354,7 +322,7 @@ const refresh = asyncHandler(async(req , res) => {
     );
 
     if (!storedToken || storedToken !== refreshToken) {
-      throw new Error(401 , "Invalid token");
+      throw new ApiError(401 , "Invalid token");
     }
 
     const new_accessToken = generateAccessToken(userId);
@@ -368,44 +336,26 @@ const refresh = asyncHandler(async(req , res) => {
     );
 
     setRefreshCookie(res, new_refreshToken);
-    setAccessCookie(res , new_accessToken);
-    return res.status(200).json(new ApiResponse(200 , {refreshToken : new_refreshToken , accessToken : new_accessToken} , "Refresh Token succeefully"));
-  } catch (err) {
-    if (
-      err.name === 'JsonWebTokenError' ||
-      err.name === 'TokenExpiredError'
-    ) {
-      throw new ApiError(401 , "Invalid Token");
-    }
-
-    throw new Error(500 , "Internal server issues");
-  }
+    // setAccessCookie(res , new_accessToken);
+    return res.status(200).json(new ApiResponse(200 , {accessToken : new_accessToken} , "Refresh token generated"));
 })
 
 const changePassword = asyncHandler(async(req , res) => {
-  let parsed;
-  try {
-    parsed = passwordChangeParser.parse(req.body);
-    } catch (err) {
-    if (err instanceof z.ZodError) {
-      throw new ApiError(400 , err.issues[0].message);
-    }
+    const parsed = passwordChangeParser.parse(req.body);
 
-    throw new Error(500 , "Internal server issues");
-  }
     const {email , password} = parsed;
     const verified = await redis.get(
       `otp:${email}:password-reset:verified`
     );
 
     if (!verified) { // ...
-     throw new Error(403 , "Email not verifed");
+     throw new ApiError(403 , "Email not verifed");
     }
 
     const user = await User.findOne({ email });
 
     if (!user) { // ...
-      throw new Error(404 , "User not found");
+      throw new ApiError(404 , "User not found");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -431,20 +381,16 @@ const logout = asyncHandler(async(req , res) => {
     throw new ApiError(401 , "Not refreshToken found");
   }
   try {
-    const decodedAccess = jwt.verify(
-      accessToken,
-      process.env.ACCESS_TOKEN
-    );
-
     const decodedRefresh = jwt.verify(
       refreshToken,
       process.env.REFRESH_TOKEN
     );
 
-    if (decodedAccess.userId !== decodedRefresh.userId) {
+    if (req.userId !== decodedRefresh.userId) {
       throw new ApiError(401 , "Invalid Token Pair");
     }
 
+    const decodedAccess = jwt.decode(accessToken);
     const remainingTime =
       decodedAccess.exp - Math.floor(Date.now() / 1000);
 
@@ -459,13 +405,13 @@ const logout = asyncHandler(async(req , res) => {
         : Promise.resolve(),
 
       redis.del(
-        `user:${decodedAccess.userId}:refresh-token`
+        `user:${req.userId}:refresh-token`
       ),
     ]);
 
     res.clearCookie('refreshToken');
-    res.clearCookie('accessToken');
-    return res.status(200).json(new ApiResponse(200 , "LogOut successfully"));
+    // res.clearCookie('accessToken');
+    return res.status(200).json(new ApiResponse(200 , null,"LogOut successfully"));
   } catch (err) {
     if (
       err.name === 'JsonWebTokenError' ||
@@ -474,7 +420,7 @@ const logout = asyncHandler(async(req , res) => {
       throw new ApiError(400 , err.message);
     }
 
-    throw new Error(500 , "Internal server issues");
+    throw new Error("Internal server issues");
   }
 })
 
