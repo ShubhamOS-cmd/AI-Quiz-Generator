@@ -4,10 +4,11 @@ import morgan  from 'morgan';
 import cookieParser from 'cookie-parser';
 import cors from "cors";
 import logger from './src/config/logger.js';
-import { redis } from './src/redis/index.js';
+import { redisConnection } from './src/jobs/email.queue.js';
 import authRoute from "./src/routes/auth.routes.js";
 import quizRoute from './src/routes/quiz.routes.js';
 import ErroHandler from './src/middlewares/Error.middleware.js';
+import {} from './src/jobs/Worker.js'
 const app = express();
 
 app.use(helmet());
@@ -24,10 +25,10 @@ app.set('trust proxy',true);
 app.get("/",(req,res) => { 
     return res.json({message:"Serve is Working"}); 
 })
-// app.get("/redis" , async(req , res)=>{
-//     const reply = await redis.ping();
-//     res.json({message_redis: `Redis replied ${reply}`});
-// })
+app.get("/redis" , async(req , res)=>{
+    const reply = await redisConnection.ping();
+    res.json({message_redisConnection: `redisConnection replied ${reply}`});
+})
 
 
 app.use('/api/v1/auth' , authRoute);

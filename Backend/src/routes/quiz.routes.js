@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { generateQuiz, saveQuiz } from '../controllers/quiz.controller';
-import { verifyJWT } from '../middlewares/verifyJWT.middleware';
+import { generateQuiz, saveQuiz } from '../controllers/quiz.controller.js';
+import { verifyJWT } from '../middlewares/verifyJWT.middleware.js';
 
 const router = Router();
 
