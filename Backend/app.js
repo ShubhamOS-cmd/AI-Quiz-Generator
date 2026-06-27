@@ -1,4 +1,6 @@
 import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
 import helmet from 'helmet';
 import morgan  from 'morgan';
 import cookieParser from 'cookie-parser';
@@ -8,7 +10,14 @@ import { redis } from './src/redis/index.js';
 import authRoute from "./src/routes/auth.routes.js";
 import quizRoute from './src/routes/quiz.routes.js';
 import ErroHandler from './src/middlewares/Error.middleware.js';
+import { roomJoinHandler, questionAttemptHandler, quizSubmissionHandler } from './src/controllers/socket.controller.js';
+import SocketMiddleware from './src/middlewares/Socket.middleware.js';
 const app = express();
+
+const server = http.createServer(app);
+const io = new Server(server,{
+    cors:{origin : "*"}
+})
 
 app.use(helmet());
 app.use(cors());
@@ -36,4 +45,26 @@ app.use('/quiz',quizRoute);
 
 
 app.use(ErroHandler);
-export default app;
+
+// Socket starts here
+
+io.use(SocketMiddleware);
+
+
+io.on("connection",(client) => {
+    // console.log("A new client connected", client.id);
+
+    client.on("join-room",roomJoinHandler);
+
+    client.on("qAtempt", questionAttemptHandler);
+
+    client.on("submit", quizSubmissionHandler);
+
+    client.on("disconnect",() => {
+        client.user = null;
+        client.quizId = null;
+    })
+})
+
+
+export default server;

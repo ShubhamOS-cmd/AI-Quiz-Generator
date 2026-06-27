@@ -13,7 +13,7 @@ const responseSchema = new mongoose.Schema(
       required: [true, "Question ID is required"],
     },
     selectedOption: {
-      type: mongoose.Schema.Types.Mixed, // string or number — matches option text
+      type: mongoose.Schema.Types.Mixed,
       required: [true, "Selected option is required"],
     },
     isCorrect: {
@@ -33,5 +33,5 @@ const responseSchema = new mongoose.Schema(
 // One response per question per attempt
 responseSchema.index({ attemptId: 1, questionId: 1 }, { unique: true });
  
-module.exports = mongoose.model("Response", responseSchema);
+export default mongoose.model("Response", responseSchema);
  

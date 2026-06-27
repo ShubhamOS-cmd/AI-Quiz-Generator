@@ -16,23 +16,19 @@ const attemptSchema = new mongoose.Schema(
     score: {
       type: Number,
       default: 0,
-      min: [0, "Score cannot be negative"],
     },
-    isSubmitted: {
-      type: Boolean,
-      default: false,
+    rank:{
+      type: Number,
+      default: null,
     },
     submittedAt: {
       type: Date,
       default: null,
     },
-  },
-  {
-    timestamps: true,
   }
 );
  
 // One attempt per user per quiz
 attemptSchema.index({ userId: 1, quizId: 1 }, { unique: true });
  
-module.exports = mongoose.model("Attempt", attemptSchema);
+export default mongoose.model("Attempt", attemptSchema);

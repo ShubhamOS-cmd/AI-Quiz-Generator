@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import { z } from 'zod';
 
 import { User } from '../models/User.model.js';
-import { redis } from '../redis/index.js';
+import { redis } from '../config/redis.js';
 import { emailQueue } from '../redis/queues/email.queue.js';
 
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -53,7 +53,7 @@ const registerParser = z.object({
 });
 
 const loginParser = z.object({
-  username: z.string().trim().min(1),
+  email: z.string().trim().email(),
   password: z.string().min(1),
 });
 
@@ -66,9 +66,9 @@ const passwordChangeParser = z.object({
 // HELPERS
 // =====================================================
 
-const generateAccessToken = (userId) => {
+const generateAccessToken = (userId,username) => {
   return jwt.sign(
-    { userId },
+    { userId,username },
     process.env.ACCESS_TOKEN,
     { expiresIn: '30m' }
   );
@@ -231,12 +231,10 @@ const register = asyncHandler(async(req , res)=>{
       throw new ApiError(401 , "Email not verifed");
     }
 
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }],
-    });
+    const existingUser = await User.findOne({ email });
 
     if (existingUser) {
-      throw new ApiError(409 , "Email or username already Exists");
+      throw new ApiError(409 , "Email already Exists");
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -247,7 +245,7 @@ const register = asyncHandler(async(req , res)=>{
       password: hashedPassword,
     });
 
-    const accessToken = generateAccessToken(user._id);
+    const accessToken = generateAccessToken(user._id,username);
     const refreshToken = generateRefreshToken(user._id);
 
     await Promise.all([
@@ -270,8 +268,8 @@ const register = asyncHandler(async(req , res)=>{
 const login = asyncHandler(async(req , res) => {
     const parsed = loginParser.parse(req.body);
 
-    const {username , password} = parsed;
-    const attemptsKey = `login:${username}:attempts`;
+    const {email , password} = parsed;
+    const attemptsKey = `login:${email}:attempts`;
 
     const attempts = await redis.incr(attemptsKey);
 
@@ -283,7 +281,7 @@ const login = asyncHandler(async(req , res) => {
       throw new ApiError(429 , "Too Many login Attempts");
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ email });
 
     if (!user) {
       throw new ApiError(401 , "Invalid credentials");
@@ -297,7 +295,7 @@ const login = asyncHandler(async(req , res) => {
 
     await redis.del(attemptsKey);
 
-    const accessToken = generateAccessToken(user._id);
+    const accessToken = generateAccessToken(user._id,user.username);
     const refreshToken = generateRefreshToken(user._id);
 
     await redis.set(
@@ -315,8 +313,8 @@ const login = asyncHandler(async(req , res) => {
     ));
 })
 const refresh = asyncHandler(async(req , res) => {
-    const userId = req.userId;
     const refreshToken = req.cookies?.refreshToken;
+    const { userId } = jwt.verify(refreshToken,process.env.REFRESH_TOKEN);
     const storedToken = await redis.get(
       `user:${userId}:refresh-token`
     );
@@ -325,7 +323,9 @@ const refresh = asyncHandler(async(req , res) => {
       throw new ApiError(401 , "Invalid token");
     }
 
-    const new_accessToken = generateAccessToken(userId);
+    const userName = await User.findById(userId);
+
+    const new_accessToken = generateAccessToken({userId,userName});
     const new_refreshToken = generateRefreshToken(userId);
 
     await redis.set(
