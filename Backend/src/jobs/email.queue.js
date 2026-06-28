@@ -1,5 +1,5 @@
 import { Queue } from 'bullmq';
-import Redis from "ioredis"
+import { redisConnection } from '../config/redis.js';
 
 export const redisConnection = new Redis({
     host: "localhost",
@@ -8,9 +8,9 @@ export const redisConnection = new Redis({
 });
 
 export const emailQueue = new Queue("emails" , {
-    connection:redisConnection
+    connection: redisConnection
 });
 
 export const quizQueue = new Queue("quiz",{
-    connection:redisConnection
+    connection: redisConnection
 })
