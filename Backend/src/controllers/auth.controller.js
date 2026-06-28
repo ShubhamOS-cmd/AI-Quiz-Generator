@@ -5,8 +5,8 @@ import cookieParser from 'cookie-parser';
 import { z } from 'zod';
 
 import { User } from '../models/User.model.js';
-import { redis } from '../config/redis.js';
-import { emailQueue } from '../redis/queues/email.queue.js';
+import { redisConnection as redis } from  '../jobs/email.queue.js';
+import { emailQueue } from '../jobs/email.queue.js';
 
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -161,7 +161,7 @@ const otpRequest = asyncHandler(async(req , res) => { // OTP Request
         },
       }
     );
-    return  res.status(200).json(new ApiResponse(200 , {otp: otp} ,`OTP sent for ${type}`));
+    return  res.status(200).json(new ApiResponse(200 , {} ,`OTP sucessfull sent`));
 })
 
 // =====================================================

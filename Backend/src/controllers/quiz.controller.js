@@ -6,7 +6,7 @@ import * as z from 'zod'
 import QuizzModel from "../models/Quizz.model.js";
 import QuestionsModel from "../models/Questions.model.js";
 import { quizQueue } from "../jobs/email.queue.js";
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const groq = new Groq({ apiKey: "My api key" });
 
 
 const quizGenerationSchema = z.object({

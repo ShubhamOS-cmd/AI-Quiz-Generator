@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { redisConnection } from "../config/redis.js";
+import { redisConnection } from "../jobs/email.queue.js"
 import { sendMail } from "../utils/mailer.js";
 import  QuizzModel  from "../models/Quizz.model.js";
 import QuestionsModel from "../models/Questions.model.js";
@@ -10,23 +10,23 @@ import AttemptModel from "../models/Attempt.model.js";
 import ResponseModel from "../models/Response.model.js";
 
 const emailWorker = new Worker("emails" , async(job) => {
-    console.log("i am Inside work", job);
+    console.log("i am Inside work");
     const { to, subject, body } = job.data;
     await sendMail(to,subject,body);
     } , {
-        redisConnection,
+        connection:redisConnection,
         concurrency:5,
         stalledInterval:30000,
         maxStalledCount:2
     }
 );
 
-Emailworker.on("completed" , (job) => {
+emailWorker.on("completed" , (job) => {
     console.log("Completed job done" , job.id);
 })
 
-Emailworker.on("failed" , (job) => {
-    console.log("Job is Falied" , job.id);
+emailWorker.on("failed" , (job , err) => {
+    console.log("Job is Falied" , job.id , err.message);
 })
 
 const activateQuiz = async(job) => {
