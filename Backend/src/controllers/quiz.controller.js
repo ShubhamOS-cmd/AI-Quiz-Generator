@@ -7,7 +7,7 @@ import QuizzModel from "../models/Quizz.model.js";
 import QuestionsModel from "../models/Questions.model.js";
 import { quizQueue } from "../jobs/email.queue.js";
 const groq = new Groq({ apiKey: "My api key" });
-
+import mongoose from "mongoose";
 
 const quizGenerationSchema = z.object({
   topic: z.string().trim({message:"Topic is required"}),
@@ -27,7 +27,7 @@ const quizSchema = z.object({
     explanation : z.string().trim().default(""),
     scoreOnCorrect : z.coerce.number().min(1).optional(),
     scoreOnIncorrect : z.coerce.number().min(0).optional(),
-  }).refine((data) => data.options.include(data.correctOption),{message : "Correct option should be among options."})
+  }).refine((data) => data.options.includes(data.correctOption),{message : "Correct option should be among options."})
   ).min(1)
 })
 
@@ -111,9 +111,9 @@ export const generateQuiz = asyncHandler(async (req, res) => {
 
 export const saveQuiz = asyncHandler(async(req,res) => {
    const { title, startTime, duration, questions } = quizSchema.parse(req.body);
-
+      let session;
    try {
-     const session = await mongoose.startSession();
+      session = await mongoose.startSession();
      session.startTransaction();
 
      const quiz = new QuizzModel({hostId:req.userId,title,startTime,duration});
