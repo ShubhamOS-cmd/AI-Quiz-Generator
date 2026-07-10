@@ -9,6 +9,10 @@ import { quizQueue } from "../jobs/email.queue.js";
 import { redis } from "../config/redis";
 import mongoose from "mongoose";
 const groq = new Groq({ apiKey: "My api key" });
+<<<<<<< HEAD
+=======
+import mongoose from "mongoose";
+>>>>>>> c24bd77c4ca0c3de72a0ad25a9deba91ed278015
 
 const quizGenerationSchema = z.object({
   topic: z.string().trim({message:"Topic is required"}),
@@ -110,12 +114,21 @@ export const generateQuiz = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200,JSON.parse(match[0])));
 });
 
+<<<<<<< HEAD
 export const saveQuiz = asyncHandler(async (req, res) => {
   const { title, startTime, duration, questions } = quizSchema.parse(req.body);
 
   const session = await mongoose.startSession(); // declared outside try so catch/finally can see it
   try {
     session.startTransaction();
+=======
+export const saveQuiz = asyncHandler(async(req,res) => {
+   const { title, startTime, duration, questions } = quizSchema.parse(req.body);
+      let session;
+   try {
+      session = await mongoose.startSession();
+     session.startTransaction();
+>>>>>>> c24bd77c4ca0c3de72a0ad25a9deba91ed278015
 
     const quiz = new QuizzModel({ hostId: req.userId, title, startTime, duration });
     await quiz.save({ session });
