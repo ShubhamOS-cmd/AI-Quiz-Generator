@@ -1,10 +1,10 @@
 import { Worker } from "bullmq";
-import { redisConnection } from "../jobs/email.queue.js"
 import { sendMail } from "../utils/mailer.js";
 import  QuizzModel  from "../models/Quizz.model.js";
 import QuestionsModel from "../models/Questions.model.js";
 import mongoose, { mongo } from "mongoose";
 import { redis } from "../config/redis.js";
+import { bullMQ_redis } from "../config/redis.js";
 import { quizQueue } from "./email.queue.js";
 import AttemptModel from "../models/Attempt.model.js";
 import ResponseModel from "../models/Response.model.js";
@@ -14,7 +14,7 @@ const emailWorker = new Worker("emails" , async(job) => {
     const { to, subject, body } = job.data;
     await sendMail(to,subject,body);
     } , {
-        connection:redisConnection,
+        connection:bullMQ_redis,
         concurrency:5,
         stalledInterval:30000,
         maxStalledCount:2
@@ -41,7 +41,7 @@ const activateQuiz = async(job) => {
     Questions.forEach(q => {
         transaction.set(
             `quiz:${quizId}:${q._id}`,
-            Json.stringify({option:q.correctOption.toString(),posScore:q.scoreOnCorrect,negScore:q.scoreOnCorrect}),
+            Json.stringify({option:q.correctOption.toString(),posScore:q.scoreOnCorrect,negScore:q.scoreOnInCorrect}),
             'EX',
             quiz.duration*60
         );
@@ -135,7 +135,7 @@ const quizWorker = new Worker("quiz", async(job) => {
         await endQuiz(job);
     }
 },{
-    redisConnection,
+    bullMQ_redis,
     concurrency:5,
     stalledInterval:30000,
     maxStalledCount:2

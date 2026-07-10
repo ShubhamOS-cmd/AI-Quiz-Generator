@@ -6,10 +6,11 @@ import morgan  from 'morgan';
 import cookieParser from 'cookie-parser';
 import cors from "cors";
 import logger from './src/config/logger.js';
-import { redisConnection } from './src/jobs/email.queue.js';
+import { redis } from './src/config/redis.js';
 import authRoute from "./src/routes/auth.routes.js";
 import quizRoute from './src/routes/quiz.routes.js';
 import ErroHandler from './src/middlewares/Error.middleware.js';
+import {roomJoinHandler , questionAttemptHandler , quizSubmissionHandler} from "./src/controllers/socket.controller.js"
 import {} from './src/jobs/Worker.js'
 const app = express();
 

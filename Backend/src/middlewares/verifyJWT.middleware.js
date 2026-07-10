@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { redisConnection as redis } from '../jobs/email.queue.js';
+import { redis } from '../config/redis.js';
 
 export const verifyJWT = async (req, res, next) => {
   console.log(req.cookies ,  req.headers);

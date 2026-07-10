@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import { z } from 'zod';
 
 import { User } from '../models/User.model.js';
-import { redisConnection as redis } from  '../jobs/email.queue.js';
+import {redis} from  '../config/redis.js';
 import { emailQueue } from '../jobs/email.queue.js';
 
 import { asyncHandler } from "../utils/asyncHandler.js";
