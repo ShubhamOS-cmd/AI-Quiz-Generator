@@ -6,12 +6,11 @@ import morgan  from 'morgan';
 import cookieParser from 'cookie-parser';
 import cors from "cors";
 import logger from './src/config/logger.js';
-import { redis } from './src/redis/index.js';
 import authRoute from "./src/routes/auth.routes.js";
 import quizRoute from './src/routes/quiz.routes.js';
 import ErroHandler from './src/middlewares/Error.middleware.js';
 import { roomJoinHandler, questionAttemptHandler, quizSubmissionHandler } from './src/controllers/socket.controller.js';
-import SocketMiddleware from './src/middlewares/Socket.middleware.js';
+import { SocketMiddleware } from './src/middlewares/Socket.middleware.js';
 const app = express();
 
 const server = http.createServer(app);
