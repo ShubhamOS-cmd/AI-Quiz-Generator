@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { generateQuiz, saveQuiz } from '../controllers/quiz.controller';
-import { verifyJWT } from '../middlewares/verifyJWT.middleware';
+import { generateQuiz, saveQuiz , getLeaderBoard , getMyScore } from '../controllers/quiz.controller.js';
+import { verifyJWT } from '../middlewares/verifyJWT.middleware.js';
 
 const router = Router();
 
-router.route('/generate',verifyJWT,generateQuiz);
+router.route('/generate').post(verifyJWT,generateQuiz);
 
-router.route('/save-quiz',verifyJWT,saveQuiz);
-
+router.route('/save-quiz').post(verifyJWT,saveQuiz);
+router.route('/leaderboard/:quizId').get(verifyJWT , getLeaderBoard);
+router.route('/myScore/:quizId').get(verifyJWT , getMyScore);
 export default router;

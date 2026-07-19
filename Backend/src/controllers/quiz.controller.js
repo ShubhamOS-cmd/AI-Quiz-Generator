@@ -6,8 +6,9 @@ import * as z from 'zod'
 import QuizzModel from "../models/Quizz.model.js";
 import QuestionsModel from "../models/Questions.model.js";
 import { quizQueue } from "../jobs/email.queue.js";
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
+import { redis } from "../config/redis";
+import mongoose from "mongoose";
+const groq = new Groq({ apiKey: "My api key" });
 
 const quizGenerationSchema = z.object({
   topic: z.string().trim({message:"Topic is required"}),
@@ -27,7 +28,7 @@ const quizSchema = z.object({
     explanation : z.string().trim().default(""),
     scoreOnCorrect : z.coerce.number().min(1).optional(),
     scoreOnIncorrect : z.coerce.number().min(0).optional(),
-  }).refine((data) => data.options.include(data.correctOption),{message : "Correct option should be among options."})
+  }).refine((data) => data.options.includes(data.correctOption),{message : "Correct option should be among options."})
   ).min(1)
 })
 
@@ -109,36 +110,81 @@ export const generateQuiz = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200,JSON.parse(match[0])));
 });
 
+
 export const saveQuiz = asyncHandler(async(req,res) => {
    const { title, startTime, duration, questions } = quizSchema.parse(req.body);
-
+      let session;
    try {
-     const session = await mongoose.startSession();
+      session = await mongoose.startSession();
      session.startTransaction();
 
-     const quiz = new QuizzModel({hostId:req.userId,title,startTime,duration});
-     await quiz.save({session});
-  
-     await QuestionsModel.insertMany(questions.map(q => ({...q,quizId:quiz._id})),{session});
-     
-     await session.commitTransaction();
+    const quiz = new QuizzModel({ hostId: req.userId, title, startTime, duration });
+    await quiz.save({ session });
 
-     await quizQueue.add(
+    await QuestionsModel.insertMany(questions.map(q => ({ ...q, quizId: quiz._id })), { session });
+
+    await session.commitTransaction();
+
+    await quizQueue.add(
       "activateQuiz",
-      {quizId: quiz._id},
-      {
-        delay: new Date(startTime) - Date.now() - 10000,
-        jobId : quiz._id.toString(),
-      }
-     );
-     
-     return res.status(201).json(new ApiResponse(201,{quizId:quiz._id},"Quiz saved successfully"));
-   }
-   catch(err){
+      { quizId: quiz._id },
+      { delay: new Date(startTime) - Date.now() - 10000, jobId: quiz._id.toString() }
+    );
+
+    return res.status(201).json(new ApiResponse(201, { quizId: quiz._id }, "Quiz saved successfully"));
+  } catch (err) {
     await session.abortTransaction();
     throw err;
-   }
-   finally{
+  } finally {
     session.endSession();
-   }
-})
+  }
+});
+
+export const getLeaderBoard = asyncHandler(async (req, res) => {
+  const { quizId } = req.params;
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+
+  const quiz = await QuizzModel.findById(quizId).select("status leaderboard");
+  if (!quiz) throw new ApiError(404, "Quiz not found");
+
+  if (quiz.status === "active") {
+    const raw = await redis.zrevrange(`quiz:${quizId}:leaderboard`, 0, limit - 1, "WITHSCORES");
+
+    const leaderboard = [];
+    for (let i = 0; i < raw.length; i += 2) {
+      const [userId, username] = raw[i].split(":");
+      leaderboard.push({ rank: leaderboard.length + 1, userId, username, score: Number(raw[i + 1]) });
+    }
+
+    return res.status(200).json(new ApiResponse(200, { status: "active", leaderboard }));
+  }
+
+  if (quiz.status === "completed") {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { status: "completed", leaderboard: quiz.leaderboard.slice(0, limit) }));
+  }
+
+  return res.status(200).json(new ApiResponse(200, { status: quiz.status, leaderboard: [] })); // scheduled
+});
+export const getMyScore = asyncHandler(async (req, res) => {
+  const { quizId } = req.params;
+  const { userId, username } = req.user;
+
+  const quiz = await QuizzModel.findById(quizId).select("status leaderboard");
+  if (!quiz) throw new ApiError(404, "Quiz not found");
+
+  if (quiz.status === "active") {
+    const member = `${userId}:${username}`;
+    const [rank, score] = await Promise.all([
+      redis.zrevrank(`quiz:${quizId}:leaderboard`, member),
+      redis.zscore(`quiz:${quizId}:leaderboard`, member),
+    ]);
+    if (rank === null) throw new ApiError(404, "You haven't attempted this quiz yet");
+    return res.status(200).json(new ApiResponse(200, { rank: rank + 1, score: Number(score) }));
+  }
+
+  const entry = quiz.leaderboard.find(e => e.userId.toString() === userId.toString());
+  if (!entry) throw new ApiError(404, "You didn't participate in this quiz");
+  return res.status(200).json(new ApiResponse(200, entry));
+});

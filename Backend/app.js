@@ -11,6 +11,7 @@ import quizRoute from './src/routes/quiz.routes.js';
 import ErroHandler from './src/middlewares/Error.middleware.js';
 import { roomJoinHandler, questionAttemptHandler, quizSubmissionHandler } from './src/controllers/socket.controller.js';
 import { SocketMiddleware } from './src/middlewares/Socket.middleware.js';
+import { redis } from './src/config/redis.js';
 const app = express();
 
 const server = http.createServer(app);
@@ -32,10 +33,10 @@ app.set('trust proxy',true);
 app.get("/",(req,res) => { 
     return res.json({message:"Serve is Working"}); 
 })
-// app.get("/redis" , async(req , res)=>{
-//     const reply = await redis.ping();
-//     res.json({message_redis: `Redis replied ${reply}`});
-// })
+app.get("/redis" , async(req , res)=>{
+    const reply = await redisConnection.ping();
+    res.json({message_redisConnection: `redisConnection replied ${reply}`});
+})
 
 
 app.use('/api/v1/auth' , authRoute);
