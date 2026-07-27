@@ -1,11 +1,11 @@
 import mongoose, { mongo } from "mongoose";
 
 const optionSchema = new mongoose.Schema({
-    text:{
-        type: mongoose.Schema.Types.Mixed,
-        required:[true , "Option text is required"],
-    }
-} , {_id : false});
+  text: {
+    type: mongoose.Schema.Types.Mixed,
+    required: true,
+  }
+}, { _id: false });
 
 const questionSchema = new mongoose.Schema(
   {

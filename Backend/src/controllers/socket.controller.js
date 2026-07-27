@@ -1,5 +1,5 @@
-import { redis } from "../config/redis";
-import QuestionsModel from "../models/Questions.model";
+import { redis } from "../config/redis.js";
+import QuestionsModel from "../models/Questions.model.js";
 
 
 const roomJoinHandler = async (quizId,callback) => {

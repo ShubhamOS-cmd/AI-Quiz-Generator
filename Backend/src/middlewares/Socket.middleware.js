@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const SocketMiddleware =  (client,next) => {
+export const SocketMiddleware =  (client,next) => {
     const token = client.handshake.auth.token;
     if(!token) return next(new Error("Unauthorized"));
     try {

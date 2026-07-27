@@ -12,6 +12,7 @@ import ErroHandler from './src/middlewares/Error.middleware.js';
 import { roomJoinHandler, questionAttemptHandler, quizSubmissionHandler } from './src/controllers/socket.controller.js';
 import { SocketMiddleware } from './src/middlewares/Socket.middleware.js';
 import { redis } from './src/config/redis.js';
+import {} from "./src/jobs/Worker.js"
 const app = express();
 
 const server = http.createServer(app);
