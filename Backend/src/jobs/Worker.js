@@ -31,7 +31,7 @@ emailWorker.on("failed" , (job , err) => {
 
 const activateQuiz = async(job) => {
     const { quizId } = job.data;
-    const quiz = await QuizzModel.findByIdAndUpdate(quizId,{status:"active"},{new:true});
+    const quiz = await QuizzModel.findByIdAndUpdate(quizId,{status:"active"},{returnDocument: 'after'});
 
     const Questions = await QuestionsModel.find({quizId});
 
@@ -135,7 +135,7 @@ const quizWorker = new Worker("quiz", async(job) => {
         await endQuiz(job);
     }
 },{
-    bullMQ_redis,
+    connection: bullMQ_redis,
     concurrency:5,
     stalledInterval:30000,
     maxStalledCount:2

@@ -6,29 +6,32 @@ import * as z from 'zod'
 import QuizzModel from "../models/Quizz.model.js";
 import QuestionsModel from "../models/Questions.model.js";
 import { quizQueue } from "../jobs/email.queue.js";
-import { redis } from "../config/redis";
+import { redis } from "../config/redis.js";
 import mongoose from "mongoose";
-const groq = new Groq({ apiKey: "My api key" });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const quizGenerationSchema = z.object({
-  topic: z.string().trim({message:"Topic is required"}),
+  topic: z.string().trim().min(1,{message:"Topic is required"}),
   difficulty: z.string().transform(val => val.toLowerCase()).pipe(z.enum(["easy","medium","difficult"])).default("easy"),
   number: z.coerce.number().default(5),
   numberOfOptions: z.coerce.number().default(4)
 })
 
 const quizSchema = z.object({
-  title: z.string().trim({ message: "Quiz should have a title" }),
+  title: z.string().trim().min(1,{ message: "Quiz should have a title" }),
   startTime : z.iso.datetime({ message: "Time should be specified"}),
   duration: z.coerce.number(),
   questions: z.array(z.object({
-    questionText: z.string().trim({message: "Question can't be blank" }),
-    options: z.array(z.any()).min(2).max(6),
-    correctOption : z.any(),
+    questionText: z.string().trim().min(1,{message: "Question can't be blank" }),
+    options: z.array(z.any()).min(2),
+    correctOption : z.string(),
     explanation : z.string().trim().default(""),
     scoreOnCorrect : z.coerce.number().min(1).optional(),
     scoreOnIncorrect : z.coerce.number().min(0).optional(),
-  }).refine((data) => data.options.includes(data.correctOption),{message : "Correct option should be among options."})
+  }).refine((data) =>{
+    const optionLetters = data.options.map((q) => q.text.split('.')[0].trim() ?? "");
+    return optionLetters.includes(data.correctOption.trim());
+  },{message : "Correct option should be among options."})
   ).min(1)
 })
 
@@ -105,6 +108,7 @@ export const generateQuiz = asyncHandler(async (req, res) => {
 
     const raw = data.choices[0].message.content;
     const match = raw.match(/\[[\s\S]*\]/);
+    console.log(match);
     if (!match) 
       throw new Error("Invalid quiz response");
     return res.status(200).json(new ApiResponse(200,JSON.parse(match[0])));
@@ -112,8 +116,16 @@ export const generateQuiz = asyncHandler(async (req, res) => {
 
 
 export const saveQuiz = asyncHandler(async(req,res) => {
+//   console.dir(req.body, { depth: null });
+
+// req.body.questions.forEach((q, i) => {
+//   console.log("Question", i + 1);
+//   console.log("options:", q.options);
+//   console.log("correct:", q.correctOption);
+// });
    const { title, startTime, duration, questions } = quizSchema.parse(req.body);
-      let session;
+   console.log({title,startTime,duration,questions});
+    let session;
    try {
       session = await mongoose.startSession();
      session.startTransaction();

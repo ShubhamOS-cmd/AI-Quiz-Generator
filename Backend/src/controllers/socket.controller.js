@@ -1,13 +1,31 @@
-import { redis } from "../config/redis";
+import { redis } from "../config/redis.js";
+import QuestionsModel from "../models/Questions.model.js";
 
 
 const roomJoinHandler = async (quizId,callback) => {
         try{
         const exists = await redis.get(`quiz:${quizId}:status`);
-        if(!exists) return callback({success: false, message: "Quiz not started yet!"});
+        if(!exists) return callback({success: false, message: "Quiz is not live now."});
         client.join(quizId);
         client.quizId = quizId;
-        callback({success: true});
+        const questions = await QuestionsModel.find({quizId});
+        const pipeline = redis.pipeline();
+        for(let i=0;i<questions.length;i++){
+            pipeline.get(`quiz:${quizId}:${questions[i].id}`);
+        }
+        const result  = await pipeline.exec();
+        const responses = result.map(([err,val],i) => {
+            if(err) return null;
+            return val;
+        })
+        const questionWithResponse = questions.map((q,i) => (
+            {
+                ...q.toObject(),
+                response: responses[i]
+            }
+        ))
+        const top10 = await redis.zrevrange(`quiz:${client.quizId}:leaderboard`,0,9,"WITHSCORES");
+        callback({leaderboard:top10,questionWithResponse,success: true});
         }
         catch(err){
             callback({success:false,message: "Internal server error"});
@@ -16,10 +34,12 @@ const roomJoinHandler = async (quizId,callback) => {
 
 const questionAttemptHandler = async({questionId,selectedOption},callback) => {
         if(!client.quizId) return callback({success:false,message:"Invalid request"});
+        const quizId = client.quizId;
+        const userId = client.user.userId;
         try{
-            const [isAttempted, isSubmitted] = await redis.pipeline()
-            .get(`quiz:${client.quizId}:${client.user.userId}:${questionId}`)
-            .get(`quiz:${client.quizId}:${client.user.userId}:submitted`)
+            const [isAttempted, isSubmitted, isLive] = await redis.pipeline()
+            .get(`quiz:${quizId}:${userId}:${questionId}`)
+            .get(`quiz:${quizId}:${userId}:submitted`)
             .exec();
             if(isAttempted[1] || isSubmitted[1]) return callback({success:false,message:"Already attempted"});
 
@@ -49,7 +69,7 @@ const quizSubmissionHandler = async(callback) => {
         if(!client.quizId) return callback({success:false,message:"Invalid request"});
         try{
             const expireAt = await redis.ttl(`quiz:${client.quizId}:status`);
-            if(expireAt <= 0) return callback({success:false,message:"Quiz already ended!"});
+            if(expireAt <= 0) return callback({success:false,message:"Quiz is not live now."});
             const isSubmitted = await redis.get(`quiz:${client.quizId}:${client.user.userId}:submitted`);
             if(isSubmitted) callback({success:false,message:"Quiz already submitted"});
             await redis.set(`quiz:${client.quizId}:${client.user.userId}:submitted`,new Date().toISOString());

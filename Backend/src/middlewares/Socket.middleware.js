@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-export default (client,next) => {
+export const SocketMiddleware =  (client,next) => {
     const token = client.handshake.auth.token;
     if(!token) return next(new Error("Unauthorized"));
     try {
@@ -12,3 +12,4 @@ export default (client,next) => {
         return next(new Error("Unauthorized"));
     }
 };
+

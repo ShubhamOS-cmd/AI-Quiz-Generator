@@ -1,6 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import mailer from 'nodemailer';
 
 const transport = mailer.createTransport({
+    
     service:"gmail",
     auth :{
         user : process.env.GMAIL_USER,
@@ -9,6 +12,7 @@ const transport = mailer.createTransport({
 })
 
 export const sendMail = async (to,subject,body) => {
+    console.log("I am going to send ");
     await transport.sendMail({
     from: process.env.GMAIL_USER,
     to,

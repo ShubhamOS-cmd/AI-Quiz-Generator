@@ -107,6 +107,7 @@ const hashOtp = (otp) => {
 
 const otpRequest = asyncHandler(async(req , res) => { // OTP Request
     const parsed = otpRequestParser.parse(req.body);
+    console.log(req.body);
     const { email, type } = parsed;
     const user = await User.findOne({ email });
     if (!user && type === 'password-reset') { 
@@ -129,9 +130,9 @@ const otpRequest = asyncHandler(async(req , res) => { // OTP Request
       throw new ApiError(429 , "Too Many Requests , Try again Later");
     }
 
-    const otp = crypto.randomInt(100000, 999999).toString();
+    const otp =  crypto.randomInt(100000, 999999).toString();
 
-    const hashedOtp = hashOtp(otp);
+    const hashedOtp = await hashOtp(otp);
 
     await redis.set(
       `otp:${email}:${type}`,
@@ -139,8 +140,8 @@ const otpRequest = asyncHandler(async(req , res) => { // OTP Request
       'EX',
       300
     );
-
-    await emailQueue.add(
+    
+    const job = await emailQueue.add(
       'otp-mail',
       {
         to: email,
@@ -161,6 +162,7 @@ const otpRequest = asyncHandler(async(req , res) => { // OTP Request
         },
       }
     );
+    console.log("Shubham " , job.id);
     return  res.status(200).json(new ApiResponse(200 , {} ,`OTP sucessfull sent`));
 })
 
@@ -308,12 +310,12 @@ const login = asyncHandler(async(req , res) => {
     setRefreshCookie(res, refreshToken);
     // setAccessCookie(res , accessToken);
     return res.status(200).json( new ApiResponse(200,
-      {accessToken: accessToken},
+      {email,userName:user.username,accessToken: accessToken},
       'Logged in successfully',
     ));
 })
 const refresh = asyncHandler(async(req , res) => {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = req.cookie?.refreshToken;
     const { userId } = jwt.verify(refreshToken,process.env.REFRESH_TOKEN);
     const storedToken = await redis.get(
       `user:${userId}:refresh-token`
