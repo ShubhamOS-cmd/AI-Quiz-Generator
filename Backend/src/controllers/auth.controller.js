@@ -107,7 +107,7 @@ const hashOtp = (otp) => {
 
 const otpRequest = asyncHandler(async(req , res) => { // OTP Request
     const parsed = otpRequestParser.parse(req.body);
-    console.log(req.body);
+    //console.log(req.body);
     const { email, type } = parsed;
     const user = await User.findOne({ email });
     if (!user && type === 'password-reset') { 
@@ -162,13 +162,9 @@ const otpRequest = asyncHandler(async(req , res) => { // OTP Request
         },
       }
     );
-    console.log("Shubham " , job.id);
-    return  res.status(200).json(new ApiResponse(200 , {} ,`OTP sucessfull sent`));
+    return  res.status(200).json(new ApiResponse(200,null,`OTP sucessfull sent`));
 })
 
-// =====================================================
-// OTP VERIFY
-// =====================================================
 const otpVerify = asyncHandler(async(req , res) =>{
 
     const  parsed = otpVerifyParser.parse(req.body);
@@ -233,11 +229,11 @@ const register = asyncHandler(async(req , res)=>{
       throw new ApiError(401 , "Email not verifed");
     }
 
-    const existingUser = await User.findOne({ email });
+    // const existingUser = await User.findOne({ email });
 
-    if (existingUser) {
-      throw new ApiError(409 , "Email already Exists");
-    }
+    // if (existingUser) {
+    //   throw new ApiError(409 , "Email already Exists");
+    // }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -263,7 +259,7 @@ const register = asyncHandler(async(req , res)=>{
     setRefreshCookie(res, refreshToken);
     // setAccessCookie(res , accessToken);
     return res.status(201).json(new ApiResponse(200 , 
-      {accessToken: accessToken},
+      {username:user.username,email:user.email,accessToken: accessToken},
       'User registered successfully'
     ));
 })
@@ -276,7 +272,7 @@ const login = asyncHandler(async(req , res) => {
     const attempts = await redis.incr(attemptsKey);
 
     if (attempts === 1) {
-      await redis.expire(attemptsKey, 15 * 60);
+      await redis.expire(attemptsKey, 300);
     }
 
     if (attempts > 5) {
@@ -310,13 +306,14 @@ const login = asyncHandler(async(req , res) => {
     setRefreshCookie(res, refreshToken);
     // setAccessCookie(res , accessToken);
     return res.status(200).json( new ApiResponse(200,
-      {email,userName:user.username,accessToken: accessToken},
+      {userName:user.username,email:user.email,accessToken: accessToken},
       'Logged in successfully',
     ));
 })
 const refresh = asyncHandler(async(req , res) => {
-    const refreshToken = req.cookie?.refreshToken;
-    const { userId } = jwt.verify(refreshToken,process.env.REFRESH_TOKEN);
+  console.log(req);
+    const refreshToken = req.cookies?.refreshToken;
+    const { userId } = await jwt.verify(refreshToken,process.env.REFRESH_TOKEN);
     const storedToken = await redis.get(
       `user:${userId}:refresh-token`
     );
@@ -325,9 +322,9 @@ const refresh = asyncHandler(async(req , res) => {
       throw new ApiError(401 , "Invalid token");
     }
 
-    const userName = await User.findById(userId);
+    const user = await User.findById(userId);
 
-    const new_accessToken = generateAccessToken({userId,userName});
+    const new_accessToken = generateAccessToken(userId,user.username);
     const new_refreshToken = generateRefreshToken(userId);
 
     await redis.set(
@@ -339,7 +336,7 @@ const refresh = asyncHandler(async(req , res) => {
 
     setRefreshCookie(res, new_refreshToken);
     // setAccessCookie(res , new_accessToken);
-    return res.status(200).json(new ApiResponse(200 , {accessToken : new_accessToken} , "Refresh token generated"));
+    return res.status(200).json(new ApiResponse(200 , {userName:user.username,email:user.email,accessToken : new_accessToken} , "Refresh token generated"));
 })
 
 const changePassword = asyncHandler(async(req , res) => {
@@ -426,23 +423,6 @@ const logout = asyncHandler(async(req , res) => {
   }
 })
 
-// =====================================================
-// PROTECTED ROUTE EXAMPLE
-// =====================================================
-
-// app.get('/profile', authMiddleware, async (req, res) => {
-//   try {
-//     const user = await Users.findById(req.userId).select('-password');
-
-//     return res.status(200).json({
-//       user,
-//     });
-//   } catch (err) {
-//     return res.status(500).json({
-//       message: 'Internal server error',
-//     });
-//   }
-// });
 
 export {
   otpRequest,

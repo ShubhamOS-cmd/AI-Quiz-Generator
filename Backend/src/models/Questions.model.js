@@ -1,11 +1,8 @@
-import mongoose, { mongo } from "mongoose";
+import mongoose from "mongoose";
 
 const optionSchema = new mongoose.Schema({
-  text: {
-    type: mongoose.Schema.Types.Mixed,
-    required: true,
-  }
-}, { _id: false });
+  type: mongoose.Schema.Types.Mixed
+}, { _id: true });
 
 const questionSchema = new mongoose.Schema(
   {
@@ -23,12 +20,12 @@ const questionSchema = new mongoose.Schema(
     options: {
       type: [optionSchema],
       validate: {
-        validator: (arr) => arr.length >= 2 && arr.length <= 6,
+        validator: (arr) => arr.length >= 2,
         message: "A question must have between 2 and 6 options",
       },
     },
     correctOption: {
-      type: mongoose.Schema.Types.Mixed,
+      type: mongoose.Schema.Types.ObjectId,
       required: [true, "Correct option is required"],
     },
     explanation: {

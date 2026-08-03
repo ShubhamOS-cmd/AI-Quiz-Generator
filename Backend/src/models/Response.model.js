@@ -13,7 +13,7 @@ const responseSchema = new mongoose.Schema(
       required: [true, "Question ID is required"],
     },
     selectedOption: {
-      type: mongoose.Schema.Types.Mixed,
+      type: mongoose.Schema.Types.ObjectId,
       required: [true, "Selected option is required"],
     },
     isCorrect: {

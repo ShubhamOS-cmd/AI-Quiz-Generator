@@ -8,6 +8,7 @@ import QuestionsModel from "../models/Questions.model.js";
 import { quizQueue } from "../jobs/email.queue.js";
 import { redis } from "../config/redis.js";
 import mongoose from "mongoose";
+import AttemptModel from "../models/Attempt.model.js";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const quizGenerationSchema = z.object({
@@ -24,13 +25,12 @@ const quizSchema = z.object({
   questions: z.array(z.object({
     questionText: z.string().trim().min(1,{message: "Question can't be blank" }),
     options: z.array(z.any()).min(2),
-    correctOption : z.string(),
+    correctOption : z.number(),
     explanation : z.string().trim().default(""),
     scoreOnCorrect : z.coerce.number().min(1).optional(),
     scoreOnIncorrect : z.coerce.number().min(0).optional(),
   }).refine((data) =>{
-    const optionLetters = data.options.map((q) => q.text.split('.')[0].trim() ?? "");
-    return optionLetters.includes(data.correctOption.trim());
+     return data.options.length >= data.correctOption
   },{message : "Correct option should be among options."})
   ).min(1)
 })
@@ -59,7 +59,7 @@ const getValidation = async ({topic}) => {
     return JSON.parse(match[0]);
 }
 catch(err){
-    console.log("Some error occurred");
+    console.log(err);
     throw new Error("Some error occured");
 }
 }
@@ -75,11 +75,12 @@ const getdata = ({topic,difficulty,number,numberOfOptions}) => {
         No. of options = ${numberOfOptions}
 
         Return a valid json object with Format : 
+        correctOption should have the index value.
         [
          {
           "questionId": "",
           "question":"",
-          "options": [A. ...,B. ..,C. ...],
+          "options": [],
           "correctOption":"",
           "Explanation":""
         },
@@ -116,7 +117,7 @@ export const generateQuiz = asyncHandler(async (req, res) => {
 
 
 export const saveQuiz = asyncHandler(async(req,res) => {
-//   console.dir(req.body, { depth: null });
+console.dir(req.body, { depth: null });
 
 // req.body.questions.forEach((q, i) => {
 //   console.log("Question", i + 1);
@@ -127,9 +128,18 @@ export const saveQuiz = asyncHandler(async(req,res) => {
    console.log({title,startTime,duration,questions});
     let session;
    try {
+     for(let i=0;i<questions.length;i++){
+         const optionDocs = questions[i].options.map((text) => ({
+         _id: new mongoose.Types.ObjectId(),
+         type: text,
+     }))
+     const correctId = optionDocs[questions[i].correctOption]._id;
+     const question = { ...questions[i],options:optionDocs,correctOption:correctId};
+     questions[i] = question;
+   }
+   console.dir(questions , {depth:null});
       session = await mongoose.startSession();
      session.startTransaction();
-
     const quiz = new QuizzModel({ hostId: req.userId, title, startTime, duration });
     await quiz.save({ session });
 
@@ -145,58 +155,36 @@ export const saveQuiz = asyncHandler(async(req,res) => {
 
     return res.status(201).json(new ApiResponse(201, { quizId: quiz._id }, "Quiz saved successfully"));
   } catch (err) {
-    await session.abortTransaction();
-    throw err;
-  } finally {
-    session.endSession();
-  }
+  if (session) await session.abortTransaction();
+  throw err;
+} finally {
+  if (session) await session.endSession();
+}
 });
 
 export const getLeaderBoard = asyncHandler(async (req, res) => {
   const { quizId } = req.params;
-  const limit = Math.min(Number(req.query.limit) || 50, 100);
+    if (!mongoose.Types.ObjectId.isValid(quizId)) {
+  throw new ApiError(400, "Invalid quiz ID");
+}
 
   const quiz = await QuizzModel.findById(quizId).select("status leaderboard");
   if (!quiz) throw new ApiError(404, "Quiz not found");
+  if(quiz.status === 'active') throw new ApiError(409,"Quiz is still active");
 
-  if (quiz.status === "active") {
-    const raw = await redis.zrevrange(`quiz:${quizId}:leaderboard`, 0, limit - 1, "WITHSCORES");
-
-    const leaderboard = [];
-    for (let i = 0; i < raw.length; i += 2) {
-      const [userId, username] = raw[i].split(":");
-      leaderboard.push({ rank: leaderboard.length + 1, userId, username, score: Number(raw[i + 1]) });
-    }
-
-    return res.status(200).json(new ApiResponse(200, { status: "active", leaderboard }));
-  }
-
-  if (quiz.status === "completed") {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, { status: "completed", leaderboard: quiz.leaderboard.slice(0, limit) }));
-  }
-
-  return res.status(200).json(new ApiResponse(200, { status: quiz.status, leaderboard: [] })); // scheduled
+  return res.status(200).json(new ApiResponse(200, { status: quiz.status, leaderboard: quiz.leaderboard }));
 });
+
 export const getMyScore = asyncHandler(async (req, res) => {
   const { quizId } = req.params;
-  const { userId, username } = req.user;
+  const { userId } = req.user;
 
-  const quiz = await QuizzModel.findById(quizId).select("status leaderboard");
-  if (!quiz) throw new ApiError(404, "Quiz not found");
+  if (!mongoose.Types.ObjectId.isValid(quizId)) {
+  throw new ApiError(400, "Invalid quiz ID");
+}
 
-  if (quiz.status === "active") {
-    const member = `${userId}:${username}`;
-    const [rank, score] = await Promise.all([
-      redis.zrevrank(`quiz:${quizId}:leaderboard`, member),
-      redis.zscore(`quiz:${quizId}:leaderboard`, member),
-    ]);
-    if (rank === null) throw new ApiError(404, "You haven't attempted this quiz yet");
-    return res.status(200).json(new ApiResponse(200, { rank: rank + 1, score: Number(score) }));
-  }
+  const attempt = await AttemptModel.findOne({quizId, userId}).populate("quizId");
+  if(!attempt) throw new ApiError(404,'Not attempted');
 
-  const entry = quiz.leaderboard.find(e => e.userId.toString() === userId.toString());
-  if (!entry) throw new ApiError(404, "You didn't participate in this quiz");
-  return res.status(200).json(new ApiResponse(200, entry));
+  return res.status(200).json(new ApiResponse(200, {quizId: attempt.quizId._id, title:attempt.quizId.title, score: attempt.score, rank: attempt.rank}));
 });
