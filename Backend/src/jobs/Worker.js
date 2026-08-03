@@ -41,7 +41,7 @@ const activateQuiz = async(job) => {
     Questions.forEach(q => {
         transaction.set(
             `quiz:${quizId}:${q._id}`,
-            Json.stringify({option:q.correctOption.toString(),posScore:q.scoreOnCorrect,negScore:q.scoreOnInCorrect}),
+            JSON.stringify({option:q.correctOption,posScore:q.scoreOnCorrect,negScore:q.scoreOnInCorrect}),
             'EX',
             quiz.duration*60
         );
@@ -49,83 +49,101 @@ const activateQuiz = async(job) => {
     await transaction.exec();
 
     await quizQueue.add("endQuiz",{ quizId },{delay : quiz.duration*60*1000});
+    console.log("Quiz started ");
 }
 
 const endQuiz = async(job) => {
-    const { quizId } = job.data;
+    console.log("Quiz ended called");
+    try {
+        const { quizId } = job.data;
     const leaderboard = await redis.zrevrange(`quiz:${quizId}:leaderboard`,0,-1,'WITHSCORES');
-
     const formatedData = [];
     const participants = [];
     const attempts = [];
     const responses = [];
 
+    const date = new Date().toISOString();
+
     for(let i=0;i<leaderboard.length;i+=2){
         const userId = leaderboard[i].split(':')[0];
         const score = Number(leaderboard[i+1]);
-        const rank = formatedData.length+1;
-        formatedData.push(
-            {
-                userId,
-                score,
-                rank
-            }
-        )
-        participants.push(userId);
-        attempts.push({
+        const rank = formatedData.length;
+
+        let [subDate,questionIds]  = await Promise.all(
+            [redis.get(`quiz:${quizId}:${userId}:submitted`),
+            redis.smembers(`quiz:${quizId}:${userId}:attempts`)
+            ]);
+        if(!subDate) subDate = date;
+
+        const attemptId = new mongoose.Types.ObjectId();
+        const attempt = {
+            _id: attemptId,
             userId,
-            quizId,
             score,
             rank,
-        })
+            submittedAt: subDate
+        }
+        attempts.push(attempt);
+        participants.push({userId,questionIds});
+        formatedData.push({userId,score,rank});
+
+        if(questionIds.length > 0){
+            const keys = questionIds.map((q) => `quiz:${quizId}:${userId}:${q}`);
+            const rawData = await redis.mget(...keys);
+
+            questionIds.forEach((q,idx) => {
+                const data = rawData[idx];
+                if(!data) return;
+                const parsed = JSON.parse(data);
+                const response = {
+                    attemptId,
+                    questionId:q,
+                    selectedOption: parsed.selectedOption,
+                    isCorrect: parsed.isCorrect,
+                    answeredAt: parsed.submittedAt
+                }
+                responses.push(response);
+            })
+        }
     }
-    attempts.forEach(attempt => {
-        attempt._id = new mongoose.Types.ObjectId();
-    });
-try{
-    await Promise.all(attempts.map(async (attempt) => {
-  const userId = attempt.userId;
-  const questionIds = await redis.smembers(`quiz:${quizId}:${userId}:attempts`);
-  if(!questionIds.length) return;
+    console.log("Quiz ended call 2");
+    const session = await mongoose.startSession();
+    try{
+        session.startTransaction();
+        console.log("1");
+        await AttemptModel.insertMany(attempts,{session});
+        console.log("2");
+        await ResponseModel.insertMany(responses,{session});
+        console.log("3");
+        await QuizzModel.updateOne(
+            {_id:quizId},
+            {$set:{participants: participants.map(p => p.userId),leaderboard:formatedData,status:'completed'}},
+            {session}
+        );
+        console.log("4");
+        await session.commitTransaction();
+    } catch(err){
+        await session.abortTransaction();
+        console.error(err);
+    } finally{
+        await session.endSession();
+    }
 
-  const [values, submittedAt] = await Promise.all([
-    redis.mget(...questionIds.map(q => `quiz:${quizId}:${userId}:${q}`)),
-    redis.getdel(`quiz:${quizId}:${userId}:submitted`)
-  ]);
-  attempt.submittedAt = submittedAt ? new Date(submittedAt) : null;
+    const keys = [`quiz:${quizId}:leaderboard`];
+    for(const {userId,questionIds} of participants){
+        keys.push(`quiz:${quizId}:${userId}:submitted`);
+        keys.push(`quiz:${quizId}:${userId}:attempts`);
 
-  questionIds.forEach((qId, j) => {
-    if(!values[j]) return;
-    const response = JSON.parse(values[j]);
-    responses.push({
-      attemptId: attempt._id,
-      questionId: qId,
-      selectedOption: response.selectedOption,
-      isCorrect: response.isCorrect,
-      answeredAt: new Date(response.submittedAt)
-    });
-  });
-}));
+        
+        questionIds.forEach((qId) => { keys.push(`quiz:${quizId}:${userId}:${qId}`)});
+    }
 
-    await Promise.all([AttemptModel.insertMany(attempts),
-        QuizzModel.findByIdAndUpdate(quizId,{
-        status:"completed",
-        leaderboard:formatedData,
-        participants
-    }),
-     responses.length && ResponseModel.insertMany(responses)
-    ]);
-}catch(err){
-    throw new Error("Failed to persist quiz results");
-}
-
-    let cursor = 0;
-    do{
-        const [newCursor,keys] = await redis.scan(cursor,"MATCH",`quiz:${quizId}:*`,"COUNT",100);
-        cursor = parseInt(newCursor);
-        if(keys.length) await redis.del(...keys);
-    }while(cursor !== 0)
-}
+    if(keys.length > 0) await redis.del(...keys);
+    } catch (error) {
+        throw error;
+    }
+    console.log("Quiz ended");
+};
 
 const quizWorker = new Worker("quiz", async(job) => {
     if(job.name === "activateQuiz"){

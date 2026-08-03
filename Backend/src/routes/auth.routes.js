@@ -15,8 +15,8 @@ router.route('/otp-request').post(otpRequest);
 router.route('/otp-verify').post(otpVerify);
 router.route('/register').post(register);
 router.route('/login').post(login);
-router.route('/refresh').post(verifyJWT , refresh);
-router.route('/change-password').post(verifyJWT , changePassword);
+router.route('/refresh').post(refresh);
+router.route('/change-password').post(changePassword);
 router.route('/logout').post(verifyJWT , logout);
 
 export default router;
