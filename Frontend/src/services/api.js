@@ -1,5 +1,6 @@
 import axios from 'axios';
-
+import {setCredentials , clearCredentials} from "../store/authSlice.js"
+import Store from "../store/index.js"
 const API_BASE_URL = '';
 
 const api = axios.create({
@@ -31,15 +32,23 @@ api.interceptors.response.use(
       try {
         const res = await axios.post('/api/v1/auth/refresh', {}, { withCredentials: true });
         const newToken = res.data?.data?.accessToken;
-        if (newToken) {
-          localStorage.setItem('accessToken', newToken);
+        let USER = {
+        userName : res.data?.data?.userName,
+        email: res.data?.data?.email
+        }
+        if (newToken && USER) {
+          Store.dispatch(setCredentials({
+            user : USER,
+            accessToken : newToken
+          }))
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
+        Store.dispatch(clearCredentials());
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
@@ -54,6 +63,8 @@ export const authApi = {
   login: (data) => api.post('/api/v1/auth/login', data),
   changePassword: (data) => api.post('/api/v1/auth/change-password', data),
   logout: () => api.post('/api/v1/auth/logout'),
+  refresh: () => api.post('/api/v1/auth/refresh'),
+  getCurrentUser: () => api.post('/api/v1/auth/getCurrentUser')
 };
 
 // Quiz Services

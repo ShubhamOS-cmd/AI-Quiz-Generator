@@ -162,7 +162,7 @@ const otpRequest = asyncHandler(async(req , res) => { // OTP Request
         },
       }
     );
-    return  res.status(200).json(new ApiResponse(200,null,`OTP sucessfull sent`));
+    return  res.status(200).json(new ApiResponse(200,{otp},`OTP sucessfull sent`));
 })
 
 const otpVerify = asyncHandler(async(req , res) =>{
@@ -422,7 +422,14 @@ const logout = asyncHandler(async(req , res) => {
     throw new Error("Internal server issues");
   }
 })
-
+const getCurrentUser = asyncHandler(async(req , res)=>{
+    const userId = req.userId;
+    const user = await User.findById(userId).select("-password");
+    if(!user){
+        throw new ApiError(404 ,"User not found");
+    }
+    return res.status(200).json(new ApiResponse(200 , user , "User get Succefully"));
+})
 
 export {
   otpRequest,
@@ -431,5 +438,6 @@ export {
   login,
   logout,
   refresh,
-  changePassword
+  changePassword,
+  getCurrentUser
 }

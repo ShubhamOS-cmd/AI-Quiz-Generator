@@ -6,7 +6,9 @@ import {  otpRequest,
   login,
   logout,
   refresh,
-  changePassword
+  changePassword,
+  getCurrentUser
+
  } from "../controllers/auth.controller.js";
 
 const router = Router();
@@ -18,5 +20,5 @@ router.route('/login').post(login);
 router.route('/refresh').post(refresh);
 router.route('/change-password').post(changePassword);
 router.route('/logout').post(verifyJWT , logout);
-
+router.route('/getCurrentUser').post(verifyJWT , getCurrentUser);
 export default router;

@@ -1,62 +1,37 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import ProtectedRoute from './components/ProtectedRoute';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import CreateQuiz from './pages/CreateQuiz';
-import LiveQuiz from './pages/LiveQuiz';
-import Leaderboard from './pages/Leaderboard';
+import { useState, useEffect } from "react";
+import "./App.css";
+import { useDispatch } from "react-redux";
+import { authApi } from "./services/api";
+import { setCredentials, clearCredentials } from "./store/authSlice";
+import { Outlet } from "react-router";
 
+import Navbar from "./components/Navbar";
 export default function App() {
-  return (
-    <div className="min-h-screen flex flex-col bg-[#080c14] text-slate-100 selection:bg-indigo-500 selection:text-white">
-      <Navbar />
-      <main className="flex-1">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/create"
-            element={
-              <ProtectedRoute>
-                <CreateQuiz />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/quiz/:quizId"
-            element={
-              <ProtectedRoute>
-                <LiveQuiz />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/leaderboard/:quizId"
-            element={
-              <ProtectedRoute>
-                <Leaderboard />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await authApi.getCurrentUser();
+        dispatch(setCredentials(res.data.data));
+      } catch (error) {
+        dispatch(clearCredentials());
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+  return loading ? (
+    <div className="flex items-center justify-center h-screen">
+      <h1>Loading ......... </h1>
     </div>
+  ) : (
+    <div className="flex flex-col h-screen bg-[#0A0F1E] overflow-hidden">
+  <Navbar />
+  <main className="flex-1 overflow-y-auto">
+    <Outlet />
+  </main>
+</div>
   );
 }

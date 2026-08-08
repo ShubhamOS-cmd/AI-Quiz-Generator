@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import { quizApi } from '../services/api';
 import { Trophy, Search, RefreshCw, AlertCircle, ArrowLeft, Award, UserCheck } from 'lucide-react';
 import LeaderboardWidget from '../components/LeaderboardWidget';

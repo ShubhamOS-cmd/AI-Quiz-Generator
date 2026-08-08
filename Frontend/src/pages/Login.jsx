@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/authSlice';
 import { authApi } from '../services/api';
-import { Mail, Lock, LogIn, Sparkles, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Mail, Lock, LogIn, Sparkles, AlertCircle, ArrowRight, ShieldCheck, User } from 'lucide-react';
 import OtpModal from '../components/OtpModal';
 
 export default function Login() {
@@ -29,9 +29,12 @@ export default function Login() {
     try {
       const res = await authApi.login(formData);
       const accessToken = res.data?.data?.accessToken;
-      
+      let USER = {
+        userName : res.data?.data?.userName,
+        email: res.data?.data?.email
+      }
       dispatch(setCredentials({
-        user: { email: formData.email },
+        user: USER,
         accessToken,
       }));
 
