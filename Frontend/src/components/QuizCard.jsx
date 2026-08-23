@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { Play, Trophy, Clock, Calendar, CheckCircle2, Copy } from 'lucide-react';
 
 export default function QuizCard({ quiz }) {
