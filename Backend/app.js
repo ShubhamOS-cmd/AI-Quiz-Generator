@@ -55,11 +55,11 @@ io.use(SocketMiddleware);
 io.on("connection",(client) => {
     // console.log("A new client connected", client.id);
 
-    client.on("join-room",roomJoinHandler);
+    client.on("join-room",(quizId, callback) => roomJoinHandler(client, quizId, callback));
 
-    client.on("qAtempt", questionAttemptHandler);
+    client.on("qAtempt",(payload, callback) => questionAttemptHandler(client, io, payload, callback));
 
-    client.on("submit", quizSubmissionHandler);
+    client.on("submit",(callback) => quizSubmissionHandler(client, callback));
 
     client.on("disconnect",() => {
         client.user = null;

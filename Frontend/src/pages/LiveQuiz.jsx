@@ -116,6 +116,10 @@ export default function LiveQuiz() {
   const currentQId = currentQ?._id || currentQ?.id;
   const currentAttempt = attemptedQuestions[currentQId];
 
+  useEffect(() => {
+    setSelectedOption(currentAttempt?.selectedOption || null);
+  }, [currentQId, currentAttempt?.selectedOption]);
+
   // Confetti trigger on completion
   useEffect(() => {
     if (quizStatus === 'completed') {
@@ -127,31 +131,23 @@ export default function LiveQuiz() {
     }
   }, [quizStatus]);
 
-  const handleOptionSelect = (optionText) => {
+  const handleOptionSelect = (option) => {
     if (currentAttempt || submitting) return; // Prevent re-attempt if already answered
 
-    setSelectedOption(optionText);
+    const optionId = String(option?._id || option?.id);
+    setSelectedOption(optionId);
 
     const socket = getSocket();
     if (!socket) return;
 
-    socket.emit('qAtempt', { questionId: currentQId, selectedOption: optionText }, (res) => {
+    socket.emit('qAtempt', { questionId: currentQId, selectedOption: optionId }, (res) => {
       if (res && res.success) {
-        const correctText = typeof currentQ.correctOption === 'string'
-          ? currentQ.correctOption
-          : currentQ.correctOption?.text;
-
-        const isCorrect = optionText === correctText;
-        const posScore = Number(currentQ.scoreOnCorrect) || 1;
-        const negScore = Number(currentQ.scoreOnIncorrect) || 0;
-        const delta = isCorrect ? posScore : -negScore;
-
         dispatch(
           recordAttempt({
             questionId: currentQId,
-            selectedOption: optionText,
-            isCorrect,
-            scoreDelta: delta,
+            selectedOption: optionId,
+            isCorrect: res.isCorrect,
+            scoreDelta: res.scoreDelta,
           })
         );
       } else {
@@ -246,7 +242,7 @@ export default function LiveQuiz() {
             {liveQuestions.map((q, idx) => {
               const qId = q._id || q.id;
               const attempt = attemptedQuestions[qId];
-              const correctOptText = typeof q.correctOption === 'string' ? q.correctOption : q.correctOption?.text;
+              const correctOptionId = String(q.correctOption?._id || q.correctOption);
 
               return (
                 <div key={idx} className="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
@@ -271,9 +267,10 @@ export default function LiveQuiz() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     {q.options.map((opt, oIdx) => {
-                      const optText = typeof opt === 'string' ? opt : opt.text;
-                      const isSelected = attempt?.selectedOption === optText;
-                      const isCorrect = optText === correctOptText;
+                      const optText = typeof opt === 'string' ? opt : opt.text ?? opt.type;
+                      const optionId = String(opt._id || opt.id);
+                      const isSelected = String(attempt?.selectedOption) === optionId;
+                      const isCorrect = optionId === correctOptionId;
 
                       let style = 'bg-slate-900/60 border-slate-800 text-slate-400';
                       if (isCorrect) style = 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold';
@@ -396,7 +393,7 @@ export default function LiveQuiz() {
               {/* Options Selection List */}
               <div className="space-y-3 pt-2">
                 {currentQ.options.map((opt, oIdx) => {
-                  const optText = typeof opt === 'string' ? opt : opt.text;
+                  const optText = typeof opt === 'string' ? opt : opt.text ?? opt.type;
                   const isAnswered = !!currentAttempt;
                   const isSelected = currentAttempt?.selectedOption === optText || selectedOption === optText;
                   
@@ -411,7 +408,7 @@ export default function LiveQuiz() {
                     <button
                       key={oIdx}
                       disabled={isAnswered}
-                      onClick={() => handleOptionSelect(optText)}
+                      onClick={() => handleOptionSelect(opt)}
                       className={`w-full p-4 rounded-2xl border text-left text-sm font-medium transition-all flex items-center justify-between group ${optionStyle}`}
                     >
                       <span className="flex items-center gap-3">

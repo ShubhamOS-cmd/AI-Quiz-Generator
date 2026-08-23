@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useSelector, useDispatch } from 'react-redux';
 import { setGeneratedQuestions, setQuizDraftMeta, clearQuizDraft } from '../store/quizSlice';
@@ -28,6 +28,23 @@ export default function CreateQuiz() {
   const [duration, setDuration] = useState(15);
   const [saving, setSaving] = useState(false);
   const [savedQuizId, setSavedQuizId] = useState(null);
+  const [arenaReady, setArenaReady] = useState(false);
+
+  useEffect(() => {
+    if (!savedQuizId) {
+      setArenaReady(false);
+      return undefined;
+    }
+
+    const updateArenaState = () => {
+      // The worker activates the quiz 10 seconds before its configured start time.
+      setArenaReady(new Date(startTime).getTime() - Date.now() <= 10000);
+    };
+
+    updateArenaState();
+    const timer = window.setInterval(updateArenaState, 1000);
+    return () => window.clearInterval(timer);
+  }, [savedQuizId, startTime]);
 
   const presets = ['JavaScript ES6 & Async', 'Python Data Structures', 'Quantum Computing', 'World War II History', 'React Hooks & State'];
 
@@ -542,17 +559,25 @@ export default function CreateQuiz() {
                       dispatch(clearQuizDraft());
                       setSaveModalOpen(false);
                       setSavedQuizId(null);
+                      setArenaReady(false);
                     }}
                     className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
                   >
                     Create Another
                   </button>
                   <button
+                    type="button"
+                    disabled={!arenaReady}
                     onClick={() => navigate(`/quiz/${savedQuizId}`)}
-                    className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+                    className={`flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 ${
+                      arenaReady
+                        ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                        : 'bg-slate-800 text-slate-400 cursor-not-allowed'
+                    }`}
+                    title={`Arena opens at ${new Date(startTime).toLocaleString()}`}
                   >
-                    <span>Enter Live Arena</span>
-                    <ChevronRight className="w-4 h-4" />
+                    {arenaReady ? <ChevronRight className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                    <span>{arenaReady ? 'Enter Live Arena' : 'Starts at scheduled time'}</span>
                   </button>
                 </div>
               </div>

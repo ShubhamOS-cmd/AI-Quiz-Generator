@@ -6,7 +6,6 @@ import * as z from 'zod'
 import QuizzModel from "../models/Quizz.model.js";
 import QuestionsModel from "../models/Questions.model.js";
 import { quizQueue } from "../jobs/email.queue.js";
-import { redis } from "../config/redis.js";
 import mongoose from "mongoose";
 import AttemptModel from "../models/Attempt.model.js";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -38,7 +37,7 @@ const quizSchema = z.object({
 const getValidation = async ({topic}) => {
     try{
     const validation = await groq.chat.completions.create({
-        model:'llama-3.1-8b-instant',
+        model:'openai/gpt-oss-120b',
         messages: [
             {
                 role:'user',
@@ -81,17 +80,18 @@ const getdata = ({topic,difficulty,number,numberOfOptions}) => {
           "questionId": "",
           "question":"",
           "options": [],
-          "correctOption":"",
+          "correctOption": index of correct option,
           "Explanation":""
         },
         ..
         ...
         ...
         ]
+        IMPORTANT: "correctOption" MUST be a JSON number (0-based index into the "options" array), never a string, never the answer text itself. Example: if the correct answer is options[2], correctOption must be 2.
         `,
       },
     ],
-    model: "llama-3.3-70b-versatile",
+    model: "openai/gpt-oss-120b",
     temperature:0.3
   });
 }
@@ -115,44 +115,49 @@ export const generateQuiz = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200,JSON.parse(match[0])));
 });
 
-
-export const saveQuiz = asyncHandler(async(req,res) => {
+/**
+ * it take raw questions with plain option string converts them into subdocuments with unique _id so answers can be checked 
+ * by ObjectId instead of array Index , saves everything atomically , then schedules a bull mq job to activate the quiz 10 seconds before stTime 
+ */
+export const saveQuiz = asyncHandler(async(req,res) => { // Controller wrapped in asyncHandler
 console.dir(req.body, { depth: null });
 
-// req.body.questions.forEach((q, i) => {
-//   console.log("Question", i + 1);
-//   console.log("options:", q.options);
-//   console.log("correct:", q.correctOption);
-// });
    const { title, startTime, duration, questions } = quizSchema.parse(req.body);
    console.log({title,startTime,duration,questions});
-    let session;
+    let session; // declare outside so catch and finally block access this if something fail or during assignment 
    try {
-     for(let i=0;i<questions.length;i++){
-         const optionDocs = questions[i].options.map((text) => ({
+     for(let i=0;i<questions.length;i++){ 
+      // we used map to transform array element 
+         const optionDocs = questions[i].options.map((opt) => ({
          _id: new mongoose.Types.ObjectId(),
-         type: text,
-     }))
-     const correctId = optionDocs[questions[i].correctOption]._id;
-     const question = { ...questions[i],options:optionDocs,correctOption:correctId};
-     questions[i] = question;
+         type: opt.text,
+     })) 
+     // every option string into an object with freshly genrated Mongo _id and type (the option text )
+     // each option independently accessed by id 
+     const correctId = optionDocs[questions[i].correctOption]._id; // get the _id of correct option 
+     const question = { ...questions[i],options:optionDocs,correctOption:correctId}; // change the array 
+     questions[i] = question; // rebuild the questions 
    }
    console.dir(questions , {depth:null});
-      session = await mongoose.startSession();
+      session = await mongoose.startSession(); // mongoDB session multi document transaction so the quiz insert and the questions inserts either both succeed or both roll back .
      session.startTransaction();
-    const quiz = new QuizzModel({ hostId: req.userId, title, startTime, duration });
-    await quiz.save({ session });
+    const quiz = new QuizzModel({ hostId: req.userId, title, startTime, duration }); // create quiz 
+    await quiz.save({ session }); // tied to this transaction via session 
 
-    await QuestionsModel.insertMany(questions.map(q => ({ ...q, quizId: quiz._id })), { session });
+    await QuestionsModel.insertMany(questions.map(q => ({ ...q, quizId: quiz._id })), { session }); // bul inserts all transformed questions quizz._id as a foreign key refrence .
 
-    await session.commitTransaction();
-
-    await quizQueue.add(
-      "activateQuiz",
-      { quizId: quiz._id },
-      { delay: new Date(startTime) - Date.now() - 10000, jobId: quiz._id.toString() }
-    );
-
+    await session.commitTransaction(); // both writes is permanent  
+    await session.endSession();
+    session = null;
+   try {
+     await quizQueue.add( // scheduled a BULL MQ JOB 
+       "activateQuiz",
+       { quizId: quiz._id },
+       { delay: new Date(startTime) - Date.now() - 10000, jobId: quiz._id.toString() }
+     );
+   } catch (error) {
+    console.error("Failed to schedule activation job for quiz : " , quiz._id , error);
+   }
     return res.status(201).json(new ApiResponse(201, { quizId: quiz._id }, "Quiz saved successfully"));
   } catch (err) {
   if (session) await session.abortTransaction();

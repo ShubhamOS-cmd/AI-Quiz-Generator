@@ -75,14 +75,19 @@ export default function QuizCard({ quiz }) {
             <Play className="w-4 h-4 fill-white" />
             Join Arena
           </Link>
-        ) : (
-          <Link
-            to={`/quiz/${quizId}`}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all"
+        ) : status === 'scheduled' ? (
+          <span
+            className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800/80 text-slate-400 text-xs font-semibold flex items-center justify-center gap-1.5"
+            title={startTime ? `Starts ${new Date(startTime).toLocaleString()}` : 'Quiz has not started yet'}
           >
-            <Play className="w-3.5 h-3.5" />
-            Enter Lobby
-          </Link>
+            <Clock className="w-3.5 h-3.5" />
+            Starts at scheduled time
+          </span>
+        ) : (
+          <span className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800/80 text-slate-400 text-xs font-semibold flex items-center justify-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Quiz completed
+          </span>
         )}
 
         <Link

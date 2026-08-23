@@ -41,7 +41,7 @@ const activateQuiz = async(job) => {
     Questions.forEach(q => {
         transaction.set(
             `quiz:${quizId}:${q._id}`,
-            JSON.stringify({option:q.correctOption,posScore:q.scoreOnCorrect,negScore:q.scoreOnInCorrect}),
+            JSON.stringify({option:q.correctOption,posScore:q.scoreOnCorrect,negScore:q.scoreOnIncorrect}),
             'EX',
             quiz.duration*60
         );
@@ -79,6 +79,7 @@ const endQuiz = async(job) => {
         const attempt = {
             _id: attemptId,
             userId,
+            quizId,
             score,
             rank,
             submittedAt: subDate
@@ -158,4 +159,3 @@ const quizWorker = new Worker("quiz", async(job) => {
     stalledInterval:30000,
     maxStalledCount:2
 })
-
