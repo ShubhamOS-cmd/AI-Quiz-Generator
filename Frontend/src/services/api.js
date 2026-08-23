@@ -54,6 +54,7 @@ export const authApi = {
   login: (data) => api.post('/api/v1/auth/login', data),
   changePassword: (data) => api.post('/api/v1/auth/change-password', data),
   logout: () => api.post('/api/v1/auth/logout'),
+  refresh:() => api.post('/api/v1/auth/refresh' , {}, { withCredentials: true })
 };
 
 // Quiz Services

@@ -20,7 +20,7 @@ const quizGenerationSchema = z.object({
 
 const quizSchema = z.object({
   title: z.string().trim().min(1,{ message: "Quiz should have a title" }),
-  startTime : z.iso.datetime({ message: "Time should be specified"}),
+  startTime : z.string().datetime({ message: "Time should be specified"}),
   duration: z.coerce.number(),
   questions: z.array(z.object({
     questionText: z.string().trim().min(1,{message: "Question can't be blank" }),
@@ -30,7 +30,7 @@ const quizSchema = z.object({
     scoreOnCorrect : z.coerce.number().min(1).optional(),
     scoreOnIncorrect : z.coerce.number().min(0).optional(),
   }).refine((data) =>{
-     return data.options.length >= data.correctOption
+     return data.options.length > data.correctOption
   },{message : "Correct option should be among options."})
   ).min(1)
 })
@@ -38,7 +38,7 @@ const quizSchema = z.object({
 const getValidation = async ({topic}) => {
     try{
     const validation = await groq.chat.completions.create({
-        model:'llama-3.1-8b-instant',
+        model:'openai/gpt-oss-120b',
         messages: [
             {
                 role:'user',
@@ -91,7 +91,7 @@ const getdata = ({topic,difficulty,number,numberOfOptions}) => {
         `,
       },
     ],
-    model: "llama-3.3-70b-versatile",
+    model: "openai/gpt-oss-120b",
     temperature:0.3
   });
 }
@@ -118,12 +118,6 @@ export const generateQuiz = asyncHandler(async (req, res) => {
 
 export const saveQuiz = asyncHandler(async(req,res) => {
 console.dir(req.body, { depth: null });
-
-// req.body.questions.forEach((q, i) => {
-//   console.log("Question", i + 1);
-//   console.log("options:", q.options);
-//   console.log("correct:", q.correctOption);
-// });
    const { title, startTime, duration, questions } = quizSchema.parse(req.body);
    console.log({title,startTime,duration,questions});
     let session;
@@ -177,7 +171,7 @@ export const getLeaderBoard = asyncHandler(async (req, res) => {
 
 export const getMyScore = asyncHandler(async (req, res) => {
   const { quizId } = req.params;
-  const { userId } = req.user;
+  const userId = req.userId;
 
   if (!mongoose.Types.ObjectId.isValid(quizId)) {
   throw new ApiError(400, "Invalid quiz ID");
