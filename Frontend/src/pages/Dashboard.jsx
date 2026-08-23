@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { useSelector } from 'react-redux';
 import { Sparkles, Play, Trophy, PlusCircle, ArrowRight, Zap, Flame, Shield, HelpCircle, KeyRound } from 'lucide-react';
 import QuizCard from '../components/QuizCard';

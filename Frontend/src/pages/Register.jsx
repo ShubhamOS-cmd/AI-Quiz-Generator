@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { useDispatch } from 'react-redux';
 import { setCredentials } from '../store/authSlice';
 import { authApi } from '../services/api';
@@ -74,7 +74,7 @@ export default function Register() {
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-12 px-4">
       <div className="w-full max-w-md">
-        
+
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 via-indigo-600 to-purple-600 shadow-xl shadow-indigo-500/30 mb-4">
             <Sparkles className="w-7 h-7 text-white" />
