@@ -63,8 +63,12 @@ export const authApi = {
   login: (data) => api.post('/api/v1/auth/login', data),
   changePassword: (data) => api.post('/api/v1/auth/change-password', data),
   logout: () => api.post('/api/v1/auth/logout'),
+<<<<<<< HEAD
+  refresh:() => api.post('/api/v1/auth/refresh' , {}, { withCredentials: true })
+=======
   refresh: () => api.post('/api/v1/auth/refresh'),
   getCurrentUser: () => api.post('/api/v1/auth/getCurrentUser')
+>>>>>>> 88cfb666c04db33a54dee298329599369c5a21d4
 };
 
 // Quiz Services
