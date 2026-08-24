@@ -63,20 +63,16 @@ export const authApi = {
   login: (data) => api.post('/api/v1/auth/login', data),
   changePassword: (data) => api.post('/api/v1/auth/change-password', data),
   logout: () => api.post('/api/v1/auth/logout'),
-<<<<<<< HEAD
-  refresh:() => api.post('/api/v1/auth/refresh' , {}, { withCredentials: true })
-=======
   refresh: () => api.post('/api/v1/auth/refresh'),
   getCurrentUser: () => api.post('/api/v1/auth/getCurrentUser')
->>>>>>> 88cfb666c04db33a54dee298329599369c5a21d4
 };
 
 // Quiz Services
 export const quizApi = {
-  saveQuiz: (data) => api.post('/quiz/save-quiz', data),
-  generateQuiz: (data) => api.post('/quiz/generate', data),
-  getLeaderboard: (quizId, limit = 50) => api.get(`/quiz/leaderboard/${quizId}?limit=${limit}`),
-  getMyScore: (quizId) => api.get(`/quiz/myScore/${quizId}`),
+  saveQuiz: (data) => api.post('/api/v1/quiz/save-quiz', data),
+  generateQuiz: (data) => api.post('/api/v1/quiz/generate', data),
+  getLeaderboard: (quizId, limit = 50) => api.get(`/api/v1/quiz/leaderboard/${quizId}?limit=${limit}`),
+  getMyScore: (quizId) => api.get(`/api/v1/quiz/myScore/${quizId}`),
 };
 
 export default api;

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import "./App.css";
 import { useDispatch } from "react-redux";
 import { authApi } from "./services/api";
 import { setCredentials, clearCredentials } from "./store/authSlice";
@@ -27,11 +26,11 @@ export default function App() {
       <h1>Loading ......... </h1>
     </div>
   ) : (
-    <div className="flex flex-col h-screen bg-[#0A0F1E] overflow-hidden">
-  <Navbar />
-  <main className="flex-1 overflow-y-auto">
-    <Outlet />
-  </main>
-</div>
+    <div className="flex flex-col h-screen bg-[#f3f5f7] overflow-hidden">
+      <Navbar />
+      <main className="flex-1 overflow-y-auto">
+        <Outlet />
+      </main>
+    </div>
   );
 }

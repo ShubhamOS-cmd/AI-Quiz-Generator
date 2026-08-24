@@ -1,7 +1,7 @@
 import React, { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
-import { createBrowserRouter , RouterProvider } from 'react-router'
+import { createBrowserRouter, RouterProvider } from 'react-router'
 import { Navigate } from 'react-router'
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
@@ -13,6 +13,7 @@ import Register from "./pages/Register.jsx"
 import Dashboard from './pages/Dashboard';
 import CreateQuiz from './pages/CreateQuiz';
 import LiveQuiz from './pages/LiveQuiz';
+import QuizEnded from './pages/QuizEnded';
 import Leaderboard from './pages/Leaderboard';
 
 const router = createBrowserRouter([
@@ -57,6 +58,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <LiveQuiz />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'quiz-ended/:quizId',
+        element: (
+          <ProtectedRoute>
+            <QuizEnded />
           </ProtectedRoute>
         ),
       },

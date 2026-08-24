@@ -42,7 +42,7 @@ app.get("/redis" , async(req , res)=>{
 
 app.use('/api/v1/auth' , authRoute);
 
-app.use('/quiz',quizRoute);
+app.use('/api/v1/quiz',quizRoute);
 
 
 app.use(ErroHandler);

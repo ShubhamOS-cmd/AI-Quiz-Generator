@@ -6,25 +6,21 @@ const roomJoinHandler = async (client, quizId, callback) => { // socket.io event
         try{
         const exists = await redis.get(`quiz:${quizId}:status`); // is the quiz is present 
         if(!exists) return callback({success: false, message: "Quiz is not live now."});
+        const remainingSeconds = await redis.ttl(`quiz:${quizId}:status`);
+        if(remainingSeconds <= 0) return callback({success: false, message: "Quiz is not live now."});
+        const userId = client.user.userId;
+        const isSubmitted = await redis.get(`quiz:${quizId}:${userId}:submitted`);
+        if(isSubmitted) return callback({success: false, message: "You have already submitted this quiz."});
         client.join(quizId); // client join quiz id 
         client.quizId = quizId; // add quiz id for future use 
         const questions = await QuestionsModel.find({quizId}); // fetch all question doc for this quiz form mongoDB 
-        const pipeline = redis.pipeline(); // pipeline is what sending a packet of containing a large batch of commands all at once wthout waiting for individual replies 
-        for(let i=0;i<questions.length;i++){
-            pipeline.get(`quiz:${quizId}:${questions[i].id}`);
-        } // batches a get for every question cached in redis entry {option , pos , neg} into a single round trip via a pipeline (not a transaction just batches commands order is preserved )
-        const result  = await pipeline.exec();
-        const responses = result.map(([err,val],i) => { // ioredis pipeline results are [error , value] pairs per command in order . 
-            if(err) return null;
-            return JSON.parse(val);
-        })
         const questionWithResponse = questions.map((q) => {
             const question = q.toObject();
             delete question.correctOption;
             return question;
         })
         const top10 = await redis.zrevrange(`quiz:${client.quizId}:leaderboard`,0,9,"WITHSCORES"); // result a flat array 
-        callback({leaderboard:top10,questionWithResponse,success: true});
+        callback({leaderboard:top10,questionWithResponse,remainingSeconds,success: true});
         }
         catch(err){
             callback({success:false,message: "Internal server error"});
@@ -53,7 +49,7 @@ const questionAttemptHandler = async(client, io, {questionId,selectedOption},cal
 
             const parseData = JSON.parse(data); // parse the data in JSON 
             const isCorrect = selectedOption == parseData.option; // if the selectedOption is correct 
-            const toAdd = isCorrect ? parseData.posScore : parseData.negScore; // if correct the posScore other wise negScore 
+            const toAdd = isCorrect ? parseData.posScore : -Math.abs(parseData.negScore); // penalties are stored as positive magnitudes
 
             const transaction = redis.multi(); // all or nothing atomically 
             transaction.incrby(`quiz:${client.quizId}:${client.user.userId}:score`,toAdd); // For attempt record
@@ -81,7 +77,7 @@ const quizSubmissionHandler = async(client,callback) => {
             const score = await redis.zscore(`quiz:${client.quizId}:leaderboard`,`${client.user.userId}:${client.user.username}`)
             const isSubmitted = await redis.get(`quiz:${client.quizId}:${client.user.userId}:submitted`);
             if(isSubmitted) {
-                callback({success:true,score,message:"Quiz already submitted"});
+                return callback({success:true,score,message:"Quiz already submitted"});
             }
             await redis.set(`quiz:${client.quizId}:${client.user.userId}:submitted`,new Date().toISOString());
             callback({success:true,score,message:"Quiz submitted"});

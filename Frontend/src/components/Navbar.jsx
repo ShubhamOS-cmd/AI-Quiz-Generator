@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
 import { authApi } from '../services/api';
 import { disconnectSocket } from '../services/socket';
-import { Sparkles, Trophy, PlusCircle, LayoutDashboard, LogOut, User, Zap } from 'lucide-react';
+import { ClipboardCheck, Trophy, PlusCircle, LayoutDashboard, LogOut } from 'lucide-react';
 
 export default function Navbar() {
   const { user, isAuthenticated } = useSelector((state) => state.auth);
@@ -27,35 +27,31 @@ export default function Navbar() {
   const isActive = (path) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3.5 shadow-xl">
+    <header className="sticky top-0 z-50 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3 shadow-lg">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        
+
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5 text-white" />
+          <div className="h-9 w-9 rounded-lg bg-blue-500/15 border border-blue-400/30 flex items-center justify-center text-blue-600 group-hover:border-blue-300/60 transition-colors">
+            <ClipboardCheck className="w-5 h-5" />
           </div>
           <div className="flex flex-col">
             <span className="font-bold text-xl tracking-tight text-white flex items-center gap-1.5">
-              Quiz<span className="text-gradient">AI</span>
-              <span className="text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                PRO
-              </span>
+              Quiz<span className="text-blue-600">AI</span>
             </span>
-            <span className="text-[11px] text-slate-400 -mt-1 hidden sm:inline">Realtime AI Assessment Studio</span>
+            <span className="text-[11px] text-slate-400 -mt-1 hidden sm:inline">Assessment workspace</span>
           </div>
         </Link>
 
         {/* Navigation Links */}
         {isAuthenticated && (
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900/60 p-1.5 rounded-xl border border-slate-800/80">
+          <nav className="hidden md:flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
             <Link
               to="/"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                isActive('/') 
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' 
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isActive('/')
+                  ? 'bg-blue-500/15 text-blue-700'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
             >
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
@@ -63,23 +59,21 @@ export default function Navbar() {
 
             <Link
               to="/create"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                isActive('/create') 
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' 
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isActive('/create')
+                  ? 'bg-blue-500/15 text-blue-700'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
             >
-              <PlusCircle className="w-4 h-4 text-cyan-400" />
+              <PlusCircle className="w-4 h-4 text-blue-600" />
               AI Studio
             </Link>
 
             <Link
               to="/leaderboard/search"
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                isActive('/leaderboard/search') || location.pathname.startsWith('/leaderboard')
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md' 
-                  : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${isActive('/leaderboard/search') || location.pathname.startsWith('/leaderboard')
+                  ? 'bg-blue-500/15 text-blue-700'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
             >
               <Trophy className="w-4 h-4 text-amber-400" />
               Leaderboards
@@ -91,8 +85,8 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           {isAuthenticated ? (
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2.5 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-xl">
-                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white uppercase shadow-sm">
+              <div className="hidden sm:flex items-center gap-2.5 bg-slate-900/80 border border-slate-800 px-3 py-1.5 rounded-lg">
+                <div className="w-7 h-7 rounded-md bg-blue-500/15 border border-blue-400/30 flex items-center justify-center text-xs font-bold text-blue-600 uppercase">
                   {user?.username?.charAt(0) || 'U'}
                 </div>
                 <div className="flex flex-col">
@@ -103,7 +97,7 @@ export default function Navbar() {
 
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-slate-700/60 hover:border-red-500/30 text-xs font-medium transition-all"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/80 hover:bg-red-500/10 text-slate-300 hover:text-red-400 border border-slate-700/60 hover:border-red-500/30 text-xs font-medium transition-colors"
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
@@ -120,7 +114,7 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/register"
-                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl shadow-lg shadow-indigo-500/20 transition-all hover:scale-[1.02]"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
               >
                 Get Started
               </Link>
