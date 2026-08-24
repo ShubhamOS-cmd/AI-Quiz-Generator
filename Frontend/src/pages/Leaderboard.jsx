@@ -24,13 +24,22 @@ export default function Leaderboard() {
     try {
       const res = await quizApi.getLeaderboard(targetId);
       const data = res.data?.data;
-      setLeaderboardData(data?.leaderboard || []);
+      setLeaderboardData((data?.leaderboard || []).map((item, index) => ({
+        ...item,
+        userId: item.userId?._id || item.userId,
+        username: item.username || item.userId?.username || 'Unknown User',
+        rank: index + 1,
+      })));
       setQuizStatus(data?.status || 'active');
 
       // Fetch user's score if available
       try {
         const scoreRes = await quizApi.getMyScore(targetId);
-        setMyScore(scoreRes.data?.data || null);
+        const scoreData = scoreRes.data?.data;
+        setMyScore(scoreData ? {
+          ...scoreData,
+          rank: scoreData.rank === 0 ? 1 : scoreData.rank,
+        } : null);
       } catch (scoreErr) {
         setMyScore(null);
       }
@@ -57,7 +66,7 @@ export default function Leaderboard() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

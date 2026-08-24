@@ -67,7 +67,7 @@ const endQuiz = async(job) => {
     for(let i=0;i<leaderboard.length;i+=2){
         const userId = leaderboard[i].split(':')[0];
         const score = Number(leaderboard[i+1]);
-        const rank = formatedData.length;
+        const rank = formatedData.length + 1;
 
         let [subDate,questionIds]  = await Promise.all(
             [redis.get(`quiz:${quizId}:${userId}:submitted`),

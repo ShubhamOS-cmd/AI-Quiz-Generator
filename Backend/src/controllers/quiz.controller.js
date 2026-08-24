@@ -32,6 +32,9 @@ const quizSchema = z.object({
      return data.options.length > data.correctOption
   },{message : "Correct option should be among options."})
   ).min(1)
+}).refine((data) => new Date(data.startTime).getTime() > Date.now(), {
+  path: ["startTime"],
+  message: "Start time must be in the future",
 })
 
 const getValidation = async ({topic}) => {
@@ -172,7 +175,9 @@ export const getLeaderBoard = asyncHandler(async (req, res) => {
   throw new ApiError(400, "Invalid quiz ID");
 }
 
-  const quiz = await QuizzModel.findById(quizId).select("status leaderboard");
+  const quiz = await QuizzModel.findById(quizId)
+    .select("status leaderboard")
+    .populate({ path: "leaderboard.userId", select: "username email" });
   if (!quiz) throw new ApiError(404, "Quiz not found");
   if(quiz.status === 'active') throw new ApiError(409,"Quiz is still active");
 

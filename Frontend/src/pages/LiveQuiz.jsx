@@ -27,6 +27,34 @@ import {
   Zap,
 } from 'lucide-react';
 import LeaderboardWidget from '../components/LeaderboardWidget';
+import FeedbackDialog from '../components/FeedbackDialog';
+
+const formatLeaderboard = (top10Raw) => {
+  if (!Array.isArray(top10Raw)) return [];
+
+  const formattedLeaderboard = [];
+  for (let i = 0; i < top10Raw.length; i += 2) {
+    const rawMember = top10Raw[i];
+    const separatorIndex = typeof rawMember === 'string' ? rawMember.indexOf(':') : -1;
+    const userId = separatorIndex >= 0 ? rawMember.slice(0, separatorIndex) : rawMember;
+    const username = separatorIndex >= 0 ? rawMember.slice(separatorIndex + 1) : rawMember;
+
+    formattedLeaderboard.push({
+      rank: formattedLeaderboard.length + 1,
+      userId,
+      username,
+      score: Number(top10Raw[i + 1]),
+    });
+  }
+
+  return formattedLeaderboard;
+};
+
+const formatTime = (totalSeconds) => {
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
+};
 
 export default function LiveQuiz() {
   const { quizId } = useParams();
@@ -47,12 +75,17 @@ export default function LiveQuiz() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerStarted, setTimerStarted] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   // Initialize Socket and Join Room
   useEffect(() => {
     dispatch(resetLiveQuizState());
     setLoading(true);
     setError('');
+    setTimerSeconds(0);
+    setTimerStarted(false);
 
     const socket = initSocket(accessToken);
 
@@ -68,9 +101,11 @@ export default function LiveQuiz() {
           initLiveQuiz({
             quizId,
             questions: res.questionWithResponse || [],
-            leaderboard: res.leaderboard || [],
+            leaderboard: formatLeaderboard(res.leaderboard),
           })
         );
+        setTimerSeconds(Math.max(0, res.remainingSeconds || 0));
+        setTimerStarted(true);
       });
     };
 
@@ -81,36 +116,32 @@ export default function LiveQuiz() {
     }
 
     // Listen for live leaderboard updates from other participants
-    socket.on('update', (top10Raw) => {
-      // Format raw socket leaderboard array into [{ rank, username, score }]
-      const formattedLeaderboard = [];
-      if (Array.isArray(top10Raw)) {
-        for (let i = 0; i < top10Raw.length; i += 2) {
-          const rawMember = top10Raw[i];
-          const score = Number(top10Raw[i + 1]);
-          const username = typeof rawMember === 'string' && rawMember.includes(':')
-            ? rawMember.split(':')[1]
-            : rawMember;
-          const userId = typeof rawMember === 'string' && rawMember.includes(':')
-            ? rawMember.split(':')[0]
-            : rawMember;
+    const handleLeaderboardUpdate = (top10Raw) => {
+      dispatch(updateLeaderboard(formatLeaderboard(top10Raw)));
+    };
 
-          formattedLeaderboard.push({
-            rank: formattedLeaderboard.length + 1,
-            userId,
-            username,
-            score,
-          });
-        }
-      }
-      dispatch(updateLeaderboard(formattedLeaderboard));
-    });
+    socket.on('update', handleLeaderboardUpdate);
 
     return () => {
-      socket.off('update');
+      socket.off('update', handleLeaderboardUpdate);
       socket.off('connect', handleRoomJoin);
+      if (getSocket() === socket) disconnectSocket();
     };
   }, [quizId, accessToken, dispatch]);
+
+  useEffect(() => {
+    if (!timerStarted) return undefined;
+    if (timerSeconds <= 0) {
+      navigate(`/quiz-ended/${quizId}`, { replace: true });
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setTimerSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [timerSeconds, timerStarted, quizId, navigate]);
 
   const currentQ = liveQuestions[currentQuestionIndex];
   const currentQId = currentQ?._id || currentQ?.id;
@@ -136,41 +167,62 @@ export default function LiveQuiz() {
 
     const optionId = String(option?._id || option?.id);
     setSelectedOption(optionId);
+  };
+
+  const handleSubmitQuestion = () => {
+    if (currentAttempt || !selectedOption || submitting) return;
 
     const socket = getSocket();
-    if (!socket) return;
+    if (!socket) {
+      setFeedback({ title: 'Connection unavailable', message: 'Please reconnect before submitting your answer.', destructive: true });
+      return;
+    }
 
-    socket.emit('qAtempt', { questionId: currentQId, selectedOption: optionId }, (res) => {
+    setSubmitting(true);
+    socket.emit('qAtempt', { questionId: currentQId, selectedOption }, (res) => {
+      setSubmitting(false);
       if (res && res.success) {
         dispatch(
           recordAttempt({
             questionId: currentQId,
-            selectedOption: optionId,
+            selectedOption,
             isCorrect: res.isCorrect,
             scoreDelta: res.scoreDelta,
           })
         );
       } else {
-        alert(res?.message || 'Question attempt failed.');
+        setFeedback({ title: 'Answer submission failed', message: res?.message || 'Question attempt failed.', destructive: true });
       }
     });
   };
 
-  const handleSubmitQuiz = () => {
-    const confirmSubmit = window.confirm('Are you sure you want to submit your quiz attempt?');
-    if (!confirmSubmit) return;
-
+  const submitQuiz = () => {
+    setFeedback(null);
     setSubmitting(true);
     const socket = getSocket();
-    if (!socket) return;
+    if (!socket) {
+      setSubmitting(false);
+      setFeedback({ title: 'Connection unavailable', message: 'Please reconnect before submitting your quiz.', destructive: true });
+      return;
+    }
 
     socket.emit('submit', (res) => {
       setSubmitting(false);
       if (res && res.success) {
         dispatch(setQuizCompleted());
       } else {
-        alert(res?.message || 'Submission failed.');
+        setFeedback({ title: 'Quiz submission failed', message: res?.message || 'Submission failed.', destructive: true });
       }
+    });
+  };
+
+  const handleSubmitQuiz = () => {
+    setFeedback({
+      title: 'Submit quiz?',
+      message: 'Are you sure you want to submit your quiz attempt? You will not be able to change your answers.',
+      confirmLabel: 'Submit Quiz',
+      destructive: true,
+      onConfirm: submitQuiz,
     });
   };
 
@@ -204,7 +256,7 @@ export default function LiveQuiz() {
   if (quizStatus === 'completed') {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 animate-fadeIn">
-        
+
         {/* Celebration Banner */}
         <div className="glass-panel rounded-3xl p-8 text-center border border-indigo-500/30 relative overflow-hidden">
           <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-300 text-slate-950 font-black flex items-center justify-center mx-auto mb-4 shadow-xl shadow-amber-500/20">
@@ -312,7 +364,16 @@ export default function LiveQuiz() {
   // Active Live Quiz Interface
   return (
     <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8 space-y-8">
-      
+      <FeedbackDialog
+        open={Boolean(feedback)}
+        title={feedback?.title}
+        message={feedback?.message}
+        confirmLabel={feedback?.confirmLabel}
+        destructive={feedback?.destructive}
+        onConfirm={feedback?.onConfirm}
+        onClose={() => setFeedback(null)}
+      />
+
       {/* Top Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-5 rounded-3xl border border-slate-800">
         <div>
@@ -329,6 +390,14 @@ export default function LiveQuiz() {
             <span>Score: {userScore} pts</span>
           </div>
 
+          <div className={`px-4 py-2 rounded-xl border text-xs font-bold flex items-center gap-2 ${timerSeconds <= 60
+            ? 'bg-red-500/10 border-red-500/40 text-red-400'
+            : 'bg-slate-900 border-slate-800 text-emerald-400'
+            }`}>
+            <Clock className="w-4 h-4" />
+            <span>{formatTime(timerSeconds)}</span>
+          </div>
+
           <button
             onClick={handleSubmitQuiz}
             disabled={submitting}
@@ -342,10 +411,10 @@ export default function LiveQuiz() {
 
       {/* Main Grid: Question View & Live Leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Question Area (2 Cols) */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Question Stepper Navigator */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-2">
             {liveQuestions.map((q, idx) => {
@@ -357,13 +426,12 @@ export default function LiveQuiz() {
                 <button
                   key={idx}
                   onClick={() => dispatch(setCurrentQuestionIndex(idx))}
-                  className={`w-9 h-9 rounded-xl text-xs font-bold shrink-0 transition-all ${
-                    isCurrent
-                      ? 'bg-indigo-600 text-white ring-2 ring-indigo-400/50 scale-105'
-                      : isAttempted
+                  className={`w-9 h-9 rounded-xl text-xs font-bold shrink-0 transition-all ${isCurrent
+                    ? 'bg-indigo-600 text-white ring-2 ring-indigo-400/50 scale-105'
+                    : isAttempted
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                       : 'bg-slate-900 text-slate-400 hover:bg-slate-800 border border-slate-800'
-                  }`}
+                    }`}
                 >
                   {idx + 1}
                 </button>
@@ -374,7 +442,7 @@ export default function LiveQuiz() {
           {/* Current Question Card */}
           {currentQ && (
             <div className="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6 relative">
-              
+
               <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800/80 pb-3">
                 <span className="font-semibold text-indigo-400">
                   Question {currentQuestionIndex + 1} of {liveQuestions.length}
@@ -394,14 +462,17 @@ export default function LiveQuiz() {
               <div className="space-y-3 pt-2">
                 {currentQ.options.map((opt, oIdx) => {
                   const optText = typeof opt === 'string' ? opt : opt.text ?? opt.type;
+                  const optionId = String(opt?._id || opt?.id);
                   const isAnswered = !!currentAttempt;
-                  const isSelected = currentAttempt?.selectedOption === optText || selectedOption === optText;
-                  
+                  const isSelected = currentAttempt?.selectedOption === optionId || selectedOption === optionId;
+
                   let optionStyle = 'bg-slate-900/80 hover:bg-slate-800/90 border-slate-800 text-slate-200';
                   if (isSelected && isAnswered) {
                     optionStyle = currentAttempt.isCorrect
                       ? 'bg-emerald-500/15 border-emerald-500/80 text-emerald-300 shadow-md shadow-emerald-500/10'
                       : 'bg-red-500/15 border-red-500/80 text-red-300 shadow-md shadow-red-500/10';
+                  } else if (isSelected) {
+                    optionStyle = 'bg-indigo-500/20 border-indigo-400 text-indigo-200 ring-2 ring-indigo-400/30';
                   }
 
                   return (
@@ -430,13 +501,22 @@ export default function LiveQuiz() {
                 })}
               </div>
 
+              <button
+                type="button"
+                disabled={!selectedOption || !!currentAttempt || submitting}
+                onClick={handleSubmitQuestion}
+                className="w-full px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Submit Answer
+              </button>
+
               {/* Instant Attempt Feedback */}
               {currentAttempt && (
-                <div className={`p-4 rounded-2xl text-xs font-medium border ${
-                  currentAttempt.isCorrect 
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                    : 'bg-red-500/10 border-red-500/30 text-red-400'
-                }`}>
+                <div className={`p-4 rounded-2xl text-xs font-medium border ${currentAttempt.isCorrect
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : 'bg-red-500/10 border-red-500/30 text-red-400'
+                  }`}>
                   {currentAttempt.isCorrect ? '✅ Correct Answer!' : '❌ Incorrect Attempt.'}
                   {currentQ.explanation && (
                     <p className="mt-1 text-slate-300 font-normal">💡 {currentQ.explanation}</p>

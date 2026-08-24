@@ -1,56 +1,72 @@
 @import "tailwindcss";
 
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
 @layer base {
+  :root {
+    --surface-page: #f3f5f7;
+    --surface-raised: #ffffff;
+    --surface-subtle: #f8fafc;
+    --line: #dbe2e8;
+    --text-primary: #17212b;
+    --text-secondary: #64748b;
+    --accent: #2563eb;
+    --accent-strong: #1d4ed8;
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
   body {
-    background-color: #080c14;
-    color: #f1f5f9;
+    background-color: var(--surface-page);
+    color: var(--text-primary);
     min-height: 100vh;
-    font-family: 'Inter', sans-serif;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.12) 0px, transparent 50%),
-      radial-gradient(at 50% 50%, rgba(14, 165, 233, 0.08) 0px, transparent 50%);
+    font-family: "Manrope", "Segoe UI", sans-serif;
+    background-image:
+      linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+    background-size: 36px 36px;
     background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Manrope", "Segoe UI", sans-serif;
   }
 }
 
-/* Glassmorphism Utilities */
+/* Shared surfaces stay opaque and readable across devices. */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.5);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
 }
 
 .glass-card-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass-card-hover:hover {
-  background: rgba(30, 41, 59, 0.7);
-  border-color: rgba(99, 102, 241, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px -10px rgba(99, 102, 241, 0.2);
+  background: #ffffff;
+  border-color: rgba(15, 118, 110, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.35);
 }
 
 .text-gradient {
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  background-image: linear-gradient(to right, #818cf8, #c084fc, #f472b6);
+  color: var(--accent);
 }
 
 .text-gradient-cyan {
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  background-image: linear-gradient(to right, #22d3ee, #5eead4, #818cf8);
+  color: var(--accent);
 }
 
 .text-gradient-gold {
@@ -66,12 +82,77 @@
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--surface-page);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.3);
-  border-radius: 4px;
+  background: #b8c5d0;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
+  background: #8fa1b1;
+}
+
+/* Existing page utilities mapped to the light workspace theme. */
+.bg-slate-900,
+.bg-slate-900\/80,
+.bg-slate-900\/90,
+.bg-slate-900\/60,
+.bg-slate-800,
+.bg-slate-800\/80,
+.bg-slate-800\/60,
+.bg-slate-800\/40 {
+  background-color: #eef2f5;
+}
+
+.text-white {
+  color: var(--text-primary);
+}
+
+.text-slate-200,
+.text-slate-300 {
+  color: #334155;
+}
+
+.text-slate-400,
+.text-slate-500 {
+  color: var(--text-secondary);
+}
+
+.border-slate-700,
+.border-slate-700\/60,
+.border-slate-800,
+.border-slate-800\/80,
+.border-slate-800\/60 {
+  border-color: var(--line);
+}
+
+/* Primary actions use one consistent blue accent across the application. */
+.bg-gradient-to-r.from-indigo-600,
+.bg-gradient-to-r.from-emerald-600,
+.bg-gradient-to-r.from-cyan-500 {
+  background-image: none;
+  background-color: #2563eb;
+}
+
+.bg-gradient-to-r.from-indigo-600:hover,
+.bg-gradient-to-r.from-emerald-600:hover,
+.bg-gradient-to-r.from-cyan-500:hover {
+  background-image: none;
+  background-color: #1d4ed8;
+}
+
+.bg-indigo-600 {
+  background-color: #2563eb;
+}
+
+.bg-indigo-600:hover {
+  background-color: #1d4ed8;
+}
+
+.bg-emerald-600 {
+  background-color: #2563eb;
+}
+
+.bg-emerald-600:hover {
+  background-color: #1d4ed8;
 }
